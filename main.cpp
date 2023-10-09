@@ -1,8 +1,9 @@
 /*
 Programming language: C++
 Programmers: Paul Moses
+Repo: https://github.com/jopamo/polyeval
 
-Date: 08.24.23
+Date: 10.08.23
 Name of class: CS3130
 
 In this project, we will compare two different algorithms that are used to evaluate
@@ -10,8 +11,9 @@ polynomials. The goal is to understand the importance of the efficiency of an al
 The first algorithm is the brute force method in which we evaluate polynomials in the
 usual way. The second algorithm uses the Horner’s Rule to evaluate polynomials.
 
-External files: The GNU Multiple Precision Arithmetic Library https://gmplib.org/
-                   commonly packaged as 'gmp', ensure the header gmp.h is around as well
+External files: The GNU Multiple Precision Arithmetic Library
+                https://gmplib.org/
+                Commonly packaged as 'gmp', ensure the header gmp.h is around as well
 */
 
 #include <iostream>
@@ -25,16 +27,16 @@ External files: The GNU Multiple Precision Arithmetic Library https://gmplib.org
 void randInt(mpz_t randomInt, int d) {
     mpz_t upperLimit;
     mpz_init(upperLimit);
-    mpz_ui_pow_ui(upperLimit, 10, d);
+    mpz_ui_pow_ui(upperLimit, 10, d); // Initialize upper limit for random integer generation
 
     gmp_randstate_t state;
     gmp_randinit_mt(state); // Initialize random state using Mersenne Twister algorithm
-    gmp_randseed_ui(state, std::time(0)); // Seed the random state
+    gmp_randseed_ui(state, std::time(0)); // Seed the random state with current time
 
-    mpz_urandomm(randomInt, state, upperLimit);
+    mpz_urandomm(randomInt, state, upperLimit); // Generate a random integer within the upper limit
 
-    mpz_clear(upperLimit);
-    gmp_randclear(state);
+    mpz_clear(upperLimit); // Clear the upper limit
+    gmp_randclear(state); // Clear the random state
 }
 
 // Function to evaluate a polynomial using the brute force method
@@ -43,13 +45,13 @@ void evalPolyBrute(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t x
 
     for (size_t i = 0; i < coefficients.size(); ++i) {
         mpz_t term;
-        mpz_init(term);
+        mpz_init(term); // Initialize a term variable using GMP
 
-        mpz_pow_ui(term, x, i);
-        mpz_mul(term, term, coefficients[i]);
-        mpz_add(result, result, term);
+        mpz_pow_ui(term, x, i); // Calculate x^i using GMP
+        mpz_mul(term, term, coefficients[i]); // Multiply term by the corresponding coefficient
+        mpz_add(result, result, term); // Add term to the result
 
-        mpz_clear(term);
+        mpz_clear(term); // Clear the term variable
     }
 }
 
@@ -58,8 +60,8 @@ void evalPolyHorner(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t 
     mpz_set_ui(result, 0);
 
     for (int i = coefficients.size() - 1; i >= 0; --i) {
-        mpz_mul(result, result, x);
-        mpz_add(result, result, coefficients[i]);
+        mpz_mul(result, result, x); // Multiply result by x
+        mpz_add(result, result, coefficients[i]); // Add the coefficient to result
     }
 }
 
@@ -69,22 +71,22 @@ void printPoly(const std::vector<mpz_t>& coefficients, mpz_t x) {
     for (int i = coefficients.size() - 1; i >= 0; --i) {
         if (mpz_sgn(coefficients[i]) != 0) {
             if (i == 0) {
-                std::cout << mpz_get_str(nullptr, 10, coefficients[i]);
+                std::cout << mpz_get_str(nullptr, 10, coefficients[i]); // Print the coefficient as a string
             } else {
-                std::cout << mpz_get_str(nullptr, 10, coefficients[i]) << "x^" << i;
+                std::cout << mpz_get_str(nullptr, 10, coefficients[i]) << "x^" << i; // Print the coefficient and x^i
                 if (i > 0) {
-                    std::cout << " + ";
+                    std::cout << " + "; // Add a plus sign if not the last term
                 }
             }
         }
     }
-    std::cout << " where x = " << mpz_get_str(nullptr, 10, x) << std::endl;
+    std::cout << " where x = " << mpz_get_str(nullptr, 10, x) << std::endl; // Print the value of x
 }
 
 int main() {
     // First round of computation (small input)
     int n1 = 40; // Degree of the polynomial (small)
-    int d1 = 4;  // Number of digits for coefficients and x (small)
+    int d1 = 6;  // Number of digits for coefficients and x (small)
 
     // Generate random coefficients for the polynomial
     std::vector<mpz_t> coefficients1(n1 + 1);
@@ -146,7 +148,7 @@ int main() {
 
     // Second round of computation (large input)
     int n2 = 1000; // Degree of the polynomial (large)
-    int d2 = 1000;  // Number of digits for coefficients and x (large)
+    int d2 = 800;  // Number of digits for coefficients and x (large)
 
     // Generate random coefficients for the polynomial
     std::vector<mpz_t> coefficients2(n2 + 1);
