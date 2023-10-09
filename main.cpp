@@ -185,6 +185,15 @@ int main() {
     auto durationBruteForce2 = std::chrono::duration_cast<std::chrono::milliseconds>(endBruteForce2 - startBruteForce2);
     auto durationHorner2 = std::chrono::duration_cast<std::chrono::milliseconds>(endHorner2 - startHorner2);
 
+    // Compare the results (small input)
+    int comparison2 = mpz_cmp(resultBruteForce2, resultHorner2);
+    if (comparison2 == 0) {
+        std::cout << "Results (large input) match.\n";
+    } else {
+        std::cout << "Results (large input) do not match.\n";
+    }
+
+
     // Print the results and elapsed times (large input)
     //gmp_printf("Result (Brute Force, large input): %Zd\n", resultBruteForce2);
     //gmp_printf("Result (Horner's Rule, large input): %Zd\n", resultHorner2);
