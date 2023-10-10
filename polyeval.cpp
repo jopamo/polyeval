@@ -183,6 +183,7 @@ void processPoly(int n, int d, const char* size) {
 int main() {
     initRandState();  // Initialize random state
 
+    // processPoly(int n, int d, const char* size)
     processPoly(16, 16, "small input");  // Process polynomial for small input
     processPoly(1000, 2000, "large input");  // Process polynomial for large input
 
