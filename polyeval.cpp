@@ -23,20 +23,21 @@ External files: The GNU Multiple Precision Arithmetic Library
 #include <cstdlib>
 #include <chrono>
 
+// Global random state
+gmp_randstate_t state;
+
+void initRandState() {
+    gmp_randinit_mt(state); // Initialize random state using Mersenne Twister algorithm
+    gmp_randseed_ui(state, std::time(0)); // Seed the random state with current time
+}
+
 // Function to generate a random integer with 'd' digits
 void randInt(mpz_t randomInt, int d) {
     mpz_t upperLimit;
     mpz_init(upperLimit);
     mpz_ui_pow_ui(upperLimit, 10, d); // Initialize upper limit for random integer generation
-
-    gmp_randstate_t state;
-    gmp_randinit_mt(state); // Initialize random state using Mersenne Twister algorithm
-    gmp_randseed_ui(state, std::time(0)); // Seed the random state with current time
-
     mpz_urandomm(randomInt, state, upperLimit); // Generate a random integer within the upper limit
-
     mpz_clear(upperLimit); // Clear the upper limit
-    gmp_randclear(state); // Clear the random state
 }
 
 // Function to evaluate a polynomial using the brute force method
@@ -90,9 +91,11 @@ void printPoly(const std::vector<mpz_t>& coefficients, mpz_t x) {
 }
 
 int main() {
+    initRandState(); // Initialize the random state once at the beginning
+
     // First round of computation (small input)
-    int n1 = 40; // Degree of the polynomial (small)
-    int d1 = 6;  // Number of digits for coefficients and x (small)
+    int n1 = 8; // Degree of the polynomial (small)
+    int d1 = 1;  // Number of digits for coefficients and x (small)
 
     // Generate random coefficients for the polynomial
     std::vector<mpz_t> coefficients1(n1 + 1);
@@ -107,7 +110,7 @@ int main() {
     randInt(x1, d1);
 
     // Print the polynomial expression
-    //printPoly(coefficients1, x1);
+    printPoly(coefficients1, x1);
 
     // Initialize result variables
     mpz_t resultBruteForce1;
@@ -138,8 +141,8 @@ int main() {
     }
 
     // Print the results and elapsed times (small input)
-    //gmp_printf("Result (Brute Force, small input): %Zd\n", resultBruteForce1);
-    //gmp_printf("Result (Horner's Rule, small input): %Zd\n", resultHorner1);
+    gmp_printf("Result (Brute Force, small input): %Zd\n", resultBruteForce1);
+    gmp_printf("Result (Horner's Rule, small input): %Zd\n", resultHorner1);
 
     std::cout << "Time for Brute Force method (small input): " << durationBruteForce1.count() << " microseconds\n";
     std::cout << "Time for Horner's Rule (small input): " << durationHorner1.count() << " microseconds\n";
@@ -213,6 +216,8 @@ int main() {
     mpz_clear(x2);
     mpz_clear(resultBruteForce2);
     mpz_clear(resultHorner2);
+
+    gmp_randclear(state); // Clear the random state at the end of your program
 
     return 0;
 }
