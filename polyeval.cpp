@@ -168,51 +168,25 @@ void clearPolyData(std::vector<mpz_t>& coefficients, mpz_t& x) {
     mpz_clear(x);
 }
 
+void processPoly(int n, int d, const char* size) {
+    mpz_t x;
+    mpz_init(x);
+    randInt(x, d);  // Generating random integer 'x'
+
+    auto coefficients = generateCoefficients(n, d); // Generating coefficients
+    //printPoly(coefficients, x);  // Printing polynomial
+    benchmarkAndEvaluate(coefficients, x, size);  // Benchmarking and evaluating polynomial
+
+    clearPolyData(coefficients, x);  // Clearing polynomial data
+}
+
 int main() {
-    // Initialize random state for generating random integers.
-    initRandState();
+    initRandState();  // Initialize random state
 
-    // Define parameters for polynomial with small input: degree = 16, digits per coefficient = 16.
-    int n1 = 16;
-    int d1 = 16;
+    processPoly(16, 16, "small input");  // Process polynomial for small input
+    processPoly(1000, 2000, "large input");  // Process polynomial for large input
 
-    // Generate a random integer 'x' with 'd1' digits for small input polynomial.
-    mpz_t x1;
-    mpz_init(x1);
-    randInt(x1, d1);
-
-    // Generate coefficients for polynomial with small input.
-    auto coefficients1 = generateCoefficients(n1, d1);
-
-    // Print polynomial expression for small input.
-    printPoly(coefficients1, x1);
-
-    // Evaluate and benchmark polynomial with small input using both methods.
-    benchmarkAndEvaluate(coefficients1, x1, "small input");
-
-    // Clear memory allocated for coefficients and 'x' in the small input polynomial.
-    clearPolyData(coefficients1, x1);
-
-    // Define parameters for polynomial with large input: degree = 2000, digits per coefficient = 1000.
-    int n2 = 2000;
-    int d2 = 1000;
-
-    // Generate a random integer 'x' with 'd2' digits for large input polynomial.
-    mpz_t x2;
-    mpz_init(x2);
-    randInt(x2, d2);
-
-    // Generate coefficients for polynomial with large input.
-    auto coefficients2 = generateCoefficients(n2, d2);
-
-    // Evaluate and benchmark polynomial with large input using both methods.
-    benchmarkAndEvaluate(coefficients2, x2, "large input");
-
-    // Clear memory allocated for coefficients and 'x' in the large input polynomial.
-    clearPolyData(coefficients2, x2);
-
-    // Clear global random state variable to prevent memory leaks.
-    gmp_randclear(state);
+    gmp_randclear(state);  // Clear global random state variable
 
     return 0;
 }
