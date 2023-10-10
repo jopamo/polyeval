@@ -159,6 +159,15 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, const
     mpz_clear(resultHorner);
 }
 
+void clearPolyData(std::vector<mpz_t>& coefficients, mpz_t& x) {
+    // Iterate over each coefficient in the vector and clear the allocated memory.
+    for (size_t i = 0; i < coefficients.size(); ++i) {
+        mpz_clear(coefficients[i]);
+    }
+    // Clear the allocated memory for the x variable.
+    mpz_clear(x);
+}
+
 int main() {
     // Initialize random state for generating random integers.
     initRandState();
@@ -182,10 +191,7 @@ int main() {
     benchmarkAndEvaluate(coefficients1, x1, "small input");
 
     // Clear memory allocated for coefficients and 'x' in the small input polynomial.
-    for (int i = 0; i <= n1; ++i) {
-        mpz_clear(coefficients1[i]);
-    }
-    mpz_clear(x1);
+    clearPolyData(coefficients1, x1);
 
     // Define parameters for polynomial with large input: degree = 2000, digits per coefficient = 1000.
     int n2 = 2000;
@@ -203,10 +209,7 @@ int main() {
     benchmarkAndEvaluate(coefficients2, x2, "large input");
 
     // Clear memory allocated for coefficients and 'x' in the large input polynomial.
-    for (int i = 0; i <= n2; ++i) {
-        mpz_clear(coefficients2[i]);
-    }
-    mpz_clear(x2);
+    clearPolyData(coefficients2, x2);
 
     // Clear global random state variable to prevent memory leaks.
     gmp_randclear(state);
