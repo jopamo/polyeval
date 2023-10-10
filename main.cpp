@@ -57,11 +57,17 @@ void evalPolyBrute(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t x
 
 // Function to evaluate a polynomial using Horner's Rule
 void evalPolyHorner(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t x) {
+    // Initialize the result variable to zero.
     mpz_set_ui(result, 0);
 
+    // Iterate through the coefficients vector in reverse order (from highest to lowest degree).
     for (int i = coefficients.size() - 1; i >= 0; --i) {
-        mpz_mul(result, result, x); // Multiply result by x
-        mpz_add(result, result, coefficients[i]); // Add the coefficient to result
+        // Multiply the current accumulated result by x. This step corresponds to moving through the
+        // polynomial terms in Horner's method.
+        mpz_mul(result, result, x);
+
+        // Add the current coefficient to the accumulated result.
+        mpz_add(result, result, coefficients[i]);
     }
 }
 
@@ -185,14 +191,13 @@ int main() {
     auto durationBruteForce2 = std::chrono::duration_cast<std::chrono::milliseconds>(endBruteForce2 - startBruteForce2);
     auto durationHorner2 = std::chrono::duration_cast<std::chrono::milliseconds>(endHorner2 - startHorner2);
 
-    // Compare the results (small input)
+    // Compare the results (large input)
     int comparison2 = mpz_cmp(resultBruteForce2, resultHorner2);
     if (comparison2 == 0) {
         std::cout << "Results (large input) match.\n";
     } else {
         std::cout << "Results (large input) do not match.\n";
     }
-
 
     // Print the results and elapsed times (large input)
     //gmp_printf("Result (Brute Force, large input): %Zd\n", resultBruteForce2);
