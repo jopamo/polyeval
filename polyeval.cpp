@@ -44,16 +44,19 @@ void randInt(mpz_t randomInt, int d) {
 void evalPolyBrute(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t x) {
     mpz_set_ui(result, 0);
 
-    for (size_t i = 0; i < coefficients.size(); ++i) {
-        mpz_t term;
-        mpz_init(term); // Initialize a term variable using GMP
+    mpz_t term, x_power;
+    mpz_init(term);
+    mpz_init_set_ui(x_power, 1); // Initialize x_power to x^0 = 1
 
-        mpz_pow_ui(term, x, i); // Calculate x^i using GMP
-        mpz_mul(term, term, coefficients[i]); // Multiply term by the corresponding coefficient
+    for (size_t i = 0; i < coefficients.size(); ++i) {
+        mpz_mul(term, x_power, coefficients[i]); // Multiply term by the corresponding coefficient
         mpz_add(result, result, term); // Add term to the result
 
-        mpz_clear(term); // Clear the term variable
+        mpz_mul(x_power, x_power, x); // Calculate next power of x iteratively
     }
+
+    mpz_clear(term);
+    mpz_clear(x_power);
 }
 
 // Function to evaluate a polynomial using Horner's Rule
