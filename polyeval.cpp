@@ -24,10 +24,11 @@ External files: The GNU Multiple Precision Arithmetic Library
 #include <chrono>
 #include <cstring>
 
-// Global variable to hold the random state used by the GMP random number generation functions.
+// Global variable for the random state used by the GMP random number generation functions.
 gmp_randstate_t state;
 
-// Function to initialize the global random state variable using the Mersenne Twister algorithm and current time as seed.
+// Function to initialize the global random state variable using the Mersenne
+// Twister algorithm and current time as seed.
 void initRandState() {
     gmp_randinit_mt(state);
     gmp_randseed_ui(state, std::time(0));
@@ -37,8 +38,12 @@ void initRandState() {
 void randInt(mpz_t randomInt, int d) {
     mpz_t upperLimit;
     mpz_init(upperLimit);
-    mpz_ui_pow_ui(upperLimit, 10, d); // Calculate upper limit (10^d) for random number generation.
-    mpz_urandomm(randomInt, state, upperLimit); // Generate a random integer in the range [0, 10^d).
+
+    // Calculate upper limit (10^d) for random number generation.
+    mpz_ui_pow_ui(upperLimit, 10, d);
+
+    // Generate a random integer in the range [0, 10^d).
+    mpz_urandomm(randomInt, state, upperLimit);
     mpz_clear(upperLimit); // Clear allocated memory for upperLimit variable.
 }
 
@@ -77,7 +82,7 @@ void evalPolyHorner(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t 
 // Function to print a polynomial expression.
 void printPoly(const std::vector<mpz_t>& coefficients, mpz_t x) {
     std::cout << "Polynomial: P(x) = ";
-    // Iterate through coefficients in reverse order to print polynomial in descending power of x.
+    // Iterate through coefficients in reverse order to print in descending power of x.
     for (int i = coefficients.size() - 1; i >= 0; --i) {
         if (mpz_sgn(coefficients[i]) != 0) {
             if (i == 0) {
@@ -96,7 +101,8 @@ void printPoly(const std::vector<mpz_t>& coefficients, mpz_t x) {
     std::cout << " where x = " << mpz_get_str(nullptr, 10, x) << std::endl;
 }
 
-// Function to generate and initialize coefficients for a polynomial of degree 'n' with 'd' digits each.
+// Function to generate and initialize coefficients for a polynomial of
+// degree 'n' with 'd' digits each.
 std::vector<mpz_t> generateCoefficients(int n, int d) {
     std::vector<mpz_t> coefficients(n + 1);
     for (int i = 0; i <= n; ++i) {
@@ -106,7 +112,8 @@ std::vector<mpz_t> generateCoefficients(int n, int d) {
     return coefficients;
 }
 
-// Function to evaluate and benchmark a polynomial using both brute-force and Horner's methods, and print results.
+// Function to evaluate and benchmark a polynomial using both brute-force and
+// Horner's methods, and print results.
 void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, const char* size) {
     mpz_t resultBruteForce, resultHorner;
     mpz_init(resultBruteForce);
