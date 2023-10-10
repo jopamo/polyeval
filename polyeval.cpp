@@ -94,8 +94,8 @@ int main() {
     initRandState(); // Initialize the random state once at the beginning
 
     // First round of computation (small input)
-    int n1 = 8; // Degree of the polynomial (small)
-    int d1 = 1;  // Number of digits for coefficients and x (small)
+    int n1 = 16; // Degree of the polynomial (small)
+    int d1 = 16;  // Number of digits for coefficients and x (small)
 
     // Generate random coefficients for the polynomial
     std::vector<mpz_t> coefficients1(n1 + 1);
@@ -156,8 +156,8 @@ int main() {
     mpz_clear(resultHorner1);
 
     // Second round of computation (large input)
-    int n2 = 1000; // Degree of the polynomial (large)
-    int d2 = 800;  // Number of digits for coefficients and x (large)
+    int n2 = 2048; // Degree of the polynomial (large)
+    int d2 = 1024;  // Number of digits for coefficients and x (large)
 
     // Generate random coefficients for the polynomial
     std::vector<mpz_t> coefficients2(n2 + 1);
