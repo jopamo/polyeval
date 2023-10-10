@@ -22,6 +22,7 @@ External files: The GNU Multiple Precision Arithmetic Library
 #include <ctime>
 #include <cstdlib>
 #include <chrono>
+#include <cstring>
 
 // Global random state
 gmp_randstate_t state;
@@ -61,17 +62,12 @@ void evalPolyBrute(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t x
 
 // Function to evaluate a polynomial using Horner's Rule
 void evalPolyHorner(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t x) {
-    // Initialize the result variable to zero.
     mpz_set_ui(result, 0);
 
-    // Iterate through the coefficients vector in reverse order (from highest to lowest degree).
+    // Iterate through coefficients vector in reverse order
     for (int i = coefficients.size() - 1; i >= 0; --i) {
-        // Multiply the current accumulated result by x. This step corresponds to moving through the
-        // polynomial terms in Horner's method.
-        mpz_mul(result, result, x);
-
-        // Add the current coefficient to the accumulated result.
-        mpz_add(result, result, coefficients[i]);
+        mpz_mul(result, result, x); // result = result * x
+        mpz_add(result, result, coefficients[i]); // result = result + coefficients[i]
     }
 }
 
@@ -93,134 +89,107 @@ void printPoly(const std::vector<mpz_t>& coefficients, mpz_t x) {
     std::cout << " where x = " << mpz_get_str(nullptr, 10, x) << std::endl; // Print the value of x
 }
 
-int main() {
-    initRandState(); // Initialize the random state once at the beginning
+std::vector<mpz_t> generateCoefficients(int n, int d) {
+    std::vector<mpz_t> coefficients(n + 1);
+    for (int i = 0; i <= n; ++i) {
+        mpz_init(coefficients[i]);
+        randInt(coefficients[i], d);
+    }
+    return coefficients;
+}
 
-    // First round of computation (small input)
-    int n1 = 16; // Degree of the polynomial (small)
-    int d1 = 16;  // Number of digits for coefficients and x (small)
+void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, const char* size) {
+    mpz_t resultBruteForce, resultHorner;
+    mpz_init(resultBruteForce);
+    mpz_init(resultHorner);
 
-    // Generate random coefficients for the polynomial
-    std::vector<mpz_t> coefficients1(n1 + 1);
-    for (int i = 0; i <= n1; ++i) {
-        mpz_init(coefficients1[i]);
-        randInt(coefficients1[i], d1);
+    auto startBruteForce = std::chrono::high_resolution_clock::now();
+    evalPolyBrute(resultBruteForce, coefficients, x);
+    auto endBruteForce = std::chrono::high_resolution_clock::now();
+
+    auto startHorner = std::chrono::high_resolution_clock::now();
+    evalPolyHorner(resultHorner, coefficients, x);
+    auto endHorner = std::chrono::high_resolution_clock::now();
+
+    // Choose time unit based on input size
+    if (strcmp(size, "large input") == 0) {
+        auto durationBruteForce = std::chrono::duration_cast<std::chrono::milliseconds>(endBruteForce - startBruteForce);
+        auto durationHorner = std::chrono::duration_cast<std::chrono::milliseconds>(endHorner - startHorner);
+
+        // Print results with milliseconds unit for large input
+        std::cout << "Time for Brute Force method (" << size << "): " << durationBruteForce.count() << " milliseconds\n";
+        std::cout << "Time for Horner's Rule (" << size << "): " << durationHorner.count() << " milliseconds\n";
+    } else {
+        auto durationBruteForce = std::chrono::duration_cast<std::chrono::microseconds>(endBruteForce - startBruteForce);
+        auto durationHorner = std::chrono::duration_cast<std::chrono::microseconds>(endHorner - startHorner);
+
+        // Print results with microseconds unit for small input
+        std::cout << "Time for Brute Force method (" << size << "): " << durationBruteForce.count() << " microseconds\n";
+        std::cout << "Time for Horner's Rule (" << size << "): " << durationHorner.count() << " microseconds\n";
     }
 
-    // Generate a random x with 'd1' digits
+    int comparison = mpz_cmp(resultBruteForce, resultHorner);
+    if (comparison == 0) {
+        std::cout << "Results (" << size << ") match.\n";
+    } else {
+        std::cout << "Results (" << size << ") do not match.\n";
+    }
+
+    mpz_clear(resultBruteForce);
+    mpz_clear(resultHorner);
+}
+
+int main() {
+    // Initialize the random state for the random number generator.
+    initRandState();
+
+    // Define parameters for the polynomial with small input.
+    int n1 = 32; // Degree of the polynomial (small)
+    int d1 = 32; // Number of digits for coefficients and x (small)
+
+    // Generate and initialize a random x value with 'd1' digits for small input polynomial.
     mpz_t x1;
     mpz_init(x1);
     randInt(x1, d1);
 
-    // Print the polynomial expression
+    // Generate coefficients for the polynomial with small input.
+    auto coefficients1 = generateCoefficients(n1, d1);
+
+    // Print the polynomial expression for small input.
     printPoly(coefficients1, x1);
 
-    // Initialize result variables
-    mpz_t resultBruteForce1;
-    mpz_t resultHorner1;
-    mpz_init(resultBruteForce1);
-    mpz_init(resultHorner1);
+    // Evaluate and benchmark the polynomial with small input using both methods.
+    benchmarkAndEvaluate(coefficients1, x1, "small input");
 
-    // Measure time for brute force method (small input)
-    auto startBruteForce1 = std::chrono::high_resolution_clock::now();
-    evalPolyBrute(resultBruteForce1, coefficients1, x1);
-    auto endBruteForce1 = std::chrono::high_resolution_clock::now();
-
-    // Measure time for Horner's Rule (small input)
-    auto startHorner1 = std::chrono::high_resolution_clock::now();
-    evalPolyHorner(resultHorner1, coefficients1, x1);
-    auto endHorner1 = std::chrono::high_resolution_clock::now();
-
-    // Calculate the elapsed time in microseconds (small input)
-    auto durationBruteForce1 = std::chrono::duration_cast<std::chrono::microseconds>(endBruteForce1 - startBruteForce1);
-    auto durationHorner1 = std::chrono::duration_cast<std::chrono::microseconds>(endHorner1 - startHorner1);
-
-    // Compare the results (small input)
-    int comparison1 = mpz_cmp(resultBruteForce1, resultHorner1);
-    if (comparison1 == 0) {
-        std::cout << "Results (small input) match.\n";
-    } else {
-        std::cout << "Results (small input) do not match.\n";
-    }
-
-    // Print the results and elapsed times (small input)
-    gmp_printf("Result (Brute Force, small input): %Zd\n", resultBruteForce1);
-    gmp_printf("Result (Horner's Rule, small input): %Zd\n", resultHorner1);
-
-    std::cout << "Time for Brute Force method (small input): " << durationBruteForce1.count() << " microseconds\n";
-    std::cout << "Time for Horner's Rule (small input): " << durationHorner1.count() << " microseconds\n";
-
-    // Clean up GMP variables (small input)
+    // Clear memory allocated for coefficients and x in the small input polynomial.
     for (int i = 0; i <= n1; ++i) {
         mpz_clear(coefficients1[i]);
     }
     mpz_clear(x1);
-    mpz_clear(resultBruteForce1);
-    mpz_clear(resultHorner1);
 
-    // Second round of computation (large input)
-    int n2 = 2048; // Degree of the polynomial (large)
-    int d2 = 1024;  // Number of digits for coefficients and x (large)
+    // Define parameters for the polynomial with large input.
+    int n2 = 2000; // Degree of the polynomial (large)
+    int d2 = 1200;  // Number of digits for coefficients and x (large)
 
-    // Generate random coefficients for the polynomial
-    std::vector<mpz_t> coefficients2(n2 + 1);
-    for (int i = 0; i <= n2; ++i) {
-        mpz_init(coefficients2[i]);
-        randInt(coefficients2[i], d2);
-    }
-
-    // Generate a random x with 'd2' digits
+    // Generate and initialize a random x value with 'd2' digits for large input polynomial.
     mpz_t x2;
     mpz_init(x2);
     randInt(x2, d2);
 
-    // Print the polynomial expression
-    //printPoly(coefficients2, x2);
+    // Generate coefficients for the polynomial with large input.
+    auto coefficients2 = generateCoefficients(n2, d2);
 
-    // Initialize result variables
-    mpz_t resultBruteForce2;
-    mpz_t resultHorner2;
-    mpz_init(resultBruteForce2);
-    mpz_init(resultHorner2);
+    // Evaluate and benchmark the polynomial with large input using both methods.
+    benchmarkAndEvaluate(coefficients2, x2, "large input");
 
-    // Measure time for brute force method (large input)
-    auto startBruteForce2 = std::chrono::high_resolution_clock::now();
-    evalPolyBrute(resultBruteForce2, coefficients2, x2);
-    auto endBruteForce2 = std::chrono::high_resolution_clock::now();
-
-    // Measure time for Horner's Rule (large input)
-    auto startHorner2 = std::chrono::high_resolution_clock::now();
-    evalPolyHorner(resultHorner2, coefficients2, x2);
-    auto endHorner2 = std::chrono::high_resolution_clock::now();
-
-    // Calculate the elapsed time in milliseconds (large input)
-    auto durationBruteForce2 = std::chrono::duration_cast<std::chrono::milliseconds>(endBruteForce2 - startBruteForce2);
-    auto durationHorner2 = std::chrono::duration_cast<std::chrono::milliseconds>(endHorner2 - startHorner2);
-
-    // Compare the results (large input)
-    int comparison2 = mpz_cmp(resultBruteForce2, resultHorner2);
-    if (comparison2 == 0) {
-        std::cout << "Results (large input) match.\n";
-    } else {
-        std::cout << "Results (large input) do not match.\n";
-    }
-
-    // Print the results and elapsed times (large input)
-    //gmp_printf("Result (Brute Force, large input): %Zd\n", resultBruteForce2);
-    //gmp_printf("Result (Horner's Rule, large input): %Zd\n", resultHorner2);
-
-    std::cout << "Time for Brute Force method (large input): " << durationBruteForce2.count() << " ms\n";
-    std::cout << "Time for Horner's Rule (large input): " << durationHorner2.count() << " ms\n";
-
-    // Clean up GMP variables (large input)
+    // Clear memory allocated for coefficients and x in the large input polynomial.
     for (int i = 0; i <= n2; ++i) {
         mpz_clear(coefficients2[i]);
     }
     mpz_clear(x2);
-    mpz_clear(resultBruteForce2);
-    mpz_clear(resultHorner2);
 
-    gmp_randclear(state); // Clear the random state at the end of your program
+    // Clear the random number generator state.
+    gmp_randclear(state);
 
     return 0;
 }
