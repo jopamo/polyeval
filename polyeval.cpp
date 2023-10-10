@@ -140,6 +140,10 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, const
         auto durationHorner = std::chrono::duration_cast<std::chrono::microseconds>(endHorner - startHorner);
         std::cout << "Time for Brute Force method (" << size << "): " << durationBruteForce.count() << " microseconds\n";
         std::cout << "Time for Horner's Rule (" << size << "): " << durationHorner.count() << " microseconds\n";
+
+        // Print the results and elapsed times
+        gmp_printf("Result (Brute Force): %Zd\n", resultBruteForce);
+        gmp_printf("Result (Horner's Rule): %Zd\n", resultHorner);
     }
 
     // Compare results of both methods and print a message indicating whether they match.
