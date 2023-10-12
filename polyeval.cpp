@@ -48,6 +48,10 @@ void randInt(mpz_t randomInt, int d) {
 }
 
 // Function to evaluate a polynomial using the brute force method.
+// Updated version increments by multiplying by x to increase the exponential
+// value. This makes it simple multiplication in each iteration intead of exponents
+// and eliminates 'term' being created/cleared with each iteration. Calculating pow
+// each time old way was expensive in memory and cpu cycles.
 void evalPolyBrute(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t x) {
     mpz_set_ui(result, 0); // Initialize result to zero.
 
@@ -69,6 +73,8 @@ void evalPolyBrute(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t x
 }
 
 // Function to evaluate a polynomial using Horner's Rule.
+// Horner's Rule breaks down the polynomial evaluation into a nested form, which requires only
+// n multiplications and n additions for a polynomial of degree n.
 void evalPolyHorner(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t x) {
     mpz_set_ui(result, 0); // Initialize result to zero.
 
