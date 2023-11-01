@@ -16,13 +16,14 @@ External files: The GNU Multiple Precision Arithmetic Library
                 Commonly packaged as 'gmp', ensure the header gmp.h is around as well
 */
 
-#include <iostream>
-#include <vector>
-#include <gmp.h>
-#include <ctime>
-#include <cstdlib>
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
+#include <ctime>
+#include <gmp.h>
+#include <iostream>
+#include <thread>
+#include <vector>
 
 // Global variable for the random state used by the GMP random number generation functions.
 gmp_randstate_t state;
@@ -52,24 +53,57 @@ void randInt(mpz_t randomInt, int d) {
 // value. This makes it simple multiplication in each iteration intead of exponents
 // and eliminates 'term' being created/cleared with each iteration. Calculating pow
 // each time old way was expensive in memory and cpu cycles.
-void evalPolyBrute(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t x) {
-    mpz_set_ui(result, 0); // Initialize result to zero.
+void evalPolyBrute(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t x, size_t start = 0, size_t end = SIZE_MAX) {
+    if (end == SIZE_MAX) {
+        end = coefficients.size();
+    }
+
+    mpz_set_ui(result, 0);
 
     mpz_t term, x_power;
     mpz_init(term);
     mpz_init_set_ui(x_power, 1); // Initialize x_power to x^0 = 1
-
-    // Iterate through each coefficient.
-    for (size_t i = 0; i < coefficients.size(); ++i) {
-        mpz_mul(term, x_power, coefficients[i]); // term = x_power * coefficient[i]
-        mpz_add(result, result, term); // Add term to result.
-
-        mpz_mul(x_power, x_power, x); // Update x_power for next iteration.
+    if (start != 0) {
+        mpz_pow_ui(x_power, x, start); // Initialize x_power to x^start if start is non-zero
     }
 
-    // Clear allocated memory for term and x_power variables.
+    for (size_t i = start; i < end; ++i) {
+        mpz_mul(term, x_power, coefficients[i]);
+        mpz_add(result, result, term);
+
+        mpz_mul(x_power, x_power, x);
+    }
+
     mpz_clear(term);
     mpz_clear(x_power);
+}
+
+void evalPolyBruteMT(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t x) {
+    mpz_set_ui(result, 0);
+
+    const size_t numThreads = std::thread::hardware_concurrency();
+    std::vector<std::thread> threads(numThreads);
+    std::vector<mpz_t> localResults(numThreads);
+
+    size_t termsPerThread = coefficients.size() / numThreads;
+
+    for (size_t t = 0; t < numThreads; ++t) {
+        mpz_init(localResults[t]);
+
+        size_t start = t * termsPerThread;
+        size_t end = (t == numThreads - 1) ? coefficients.size() : start + termsPerThread;
+
+        threads[t] = std::thread(evalPolyBrute, localResults[t], std::ref(coefficients), x, start, end);
+    }
+
+    for (auto& t : threads) {
+        t.join();
+    }
+
+    for (mpz_t& localResult : localResults) {
+        mpz_add(result, result, localResult);
+        mpz_clear(localResult);
+    }
 }
 
 // Function to evaluate a polynomial using Horner's Rule.
@@ -121,14 +155,20 @@ std::vector<mpz_t> generateCoefficients(int n, int d) {
 // Function to evaluate and benchmark a polynomial using both brute-force and
 // Horner's methods, and print results.
 void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, const char* size) {
-    mpz_t resultBruteForce, resultHorner;
+    mpz_t resultBruteForce, resultBruteForceMT, resultHorner;
     mpz_init(resultBruteForce);
+    mpz_init(resultBruteForceMT);
     mpz_init(resultHorner);
 
     // Start timing for brute-force method.
     auto startBruteForce = std::chrono::high_resolution_clock::now();
     evalPolyBrute(resultBruteForce, coefficients, x);
     auto endBruteForce = std::chrono::high_resolution_clock::now();
+
+    // Start timing for brute-force MT method.
+    auto startBruteForceMT = std::chrono::high_resolution_clock::now();
+    evalPolyBruteMT(resultBruteForceMT, coefficients, x);
+    auto endBruteForceMT = std::chrono::high_resolution_clock::now();
 
     // Start timing for Horner's Rule method.
     auto startHorner = std::chrono::high_resolution_clock::now();
@@ -138,23 +178,29 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, const
     // Choose appropriate timing unit based on input size and print results.
     if (strcmp(size, "large input") == 0) {
         auto durationBruteForce = std::chrono::duration_cast<std::chrono::milliseconds>(endBruteForce - startBruteForce);
+        auto durationBruteForceMT = std::chrono::duration_cast<std::chrono::milliseconds>(endBruteForceMT - startBruteForceMT);
         auto durationHorner = std::chrono::duration_cast<std::chrono::milliseconds>(endHorner - startHorner);
         std::cout << "Time for Brute Force method (" << size << "): " << durationBruteForce.count() << " milliseconds\n";
+        std::cout << "Time for Brute Force multithreaded method (" << size << "): " << durationBruteForceMT.count() << " milliseconds\n";
         std::cout << "Time for Horner's Rule (" << size << "): " << durationHorner.count() << " milliseconds\n";
     } else {
         auto durationBruteForce = std::chrono::duration_cast<std::chrono::microseconds>(endBruteForce - startBruteForce);
+        auto durationBruteForceMT = std::chrono::duration_cast<std::chrono::microseconds>(endBruteForceMT - startBruteForceMT);
         auto durationHorner = std::chrono::duration_cast<std::chrono::microseconds>(endHorner - startHorner);
         std::cout << "Time for Brute Force method (" << size << "): " << durationBruteForce.count() << " microseconds\n";
+        std::cout << "Time for Brute Force multithreaded method (" << size << "): " << durationBruteForceMT.count() << " microseconds\n";
         std::cout << "Time for Horner's Rule (" << size << "): " << durationHorner.count() << " microseconds\n";
 
         // Print the results and elapsed times
         gmp_printf("Result (Brute Force): %Zd\n", resultBruteForce);
+        gmp_printf("Result (Brute Force MT): %Zd\n", resultBruteForceMT);
         gmp_printf("Result (Horner's Rule): %Zd\n", resultHorner);
     }
 
     // Compare results of both methods and print a message indicating whether they match.
     int comparison = mpz_cmp(resultBruteForce, resultHorner);
-    if (comparison == 0) {
+    int comparison2 = mpz_cmp(resultBruteForce, resultBruteForce);
+    if (comparison == 0 && comparison2 == 0) {
         std::cout << "Results (" << size << ") match.\n";
     } else {
         std::cout << "Results (" << size << ") do not match.\n";
@@ -190,8 +236,8 @@ int main() {
     initRandState();  // Initialize random state
 
     // processPoly(int n, int d, const char* size)
-    processPoly(16, 16, "small input");  // Process polynomial for small input
-    processPoly(1000, 2000, "large input");  // Process polynomial for large input
+    processPoly(32, 32, "small input");  // Process polynomial for small input
+    processPoly(3000, 2000, "large input");  // Process polynomial for large input
 
     gmp_randclear(state);  // Clear global random state variable
 
