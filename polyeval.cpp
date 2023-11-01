@@ -374,12 +374,32 @@ void processPoly(int n, int d) {
   clearPolyData(coefficients, x); // Clearing polynomial data
 }
 
-int main() {
+bool parseArgs(int argc, char* argv[], int& n, int& d) {
+  if (argc != 3) {
+    std::cerr << "Usage: " << argv[0] << " <Number of coefficients> <Length in digits>" << std::endl;
+    return false;
+  }
+
+  n = std::stoi(argv[1]);
+  d = std::stoi(argv[2]);
+
+  if (n <= 0 || d <= 0) {
+    std::cerr << "Both the number of coefficients and the length in digits should be greater than 0." << std::endl;
+    return false;
+  }
+  return true;
+}
+
+int main(int argc, char* argv[]) {
   initRandState(); // Initialize random state
 
-  // Syntax: processPoly(int n, int d)
-  processPoly(32, 32); // Process polynomial for small input
-  processPoly(5000, 1000); // Process polynomial for large input
+  int n, d;
+
+  if (!parseArgs(argc, argv, n, d)) {
+    return 1;
+  }
+
+  processPoly(n, d);
 
   gmp_randclear(state); // Clear global random state variable
 
