@@ -303,17 +303,17 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool 
   auto endHornerMT = std::chrono::high_resolution_clock::now();
 
   // Choose appropriate timing unit based on input size and print results.
-  if (coefficients.size() > 1000) { // "large" is more than 1000 coefficients
+  if (coefficients.size() > 500) { // "large" is more than 500 coefficients
     size = "large input";
 
     auto durationBruteForce = std::chrono::duration_cast < std::chrono::milliseconds > (endBruteForce - startBruteForce);
     auto durationBruteForceMT = std::chrono::duration_cast < std::chrono::milliseconds > (endBruteForceMT - startBruteForceMT);
     auto durationHorner = std::chrono::duration_cast < std::chrono::milliseconds > (endHorner - startHorner);
     auto durationHornerMT = std::chrono::duration_cast < std::chrono::milliseconds > (endHornerMT - startHornerMT);
-    std::cout << "Time for Brute Force method (" << size << "): " << durationBruteForce.count() << " milliseconds\n";
-    std::cout << "Time for Brute Force multithreaded method (" << size << "): " << durationBruteForceMT.count() << " milliseconds\n";
-    std::cout << "Time for Horner's Rule (" << size << "): " << durationHorner.count() << " milliseconds\n";
-    std::cout << "Time for Horner's Rule(multithreaded) (" << size << "): " << durationHornerMT.count() << " milliseconds\n";
+    std::cout << "Time for Brute Force method (" << size << "):\t\t\t" << durationBruteForce.count() << " milliseconds\n";
+    std::cout << "Time for Brute Force method (multithreaded) (" << size << "):\t" << durationBruteForceMT.count() << " milliseconds\n";
+    std::cout << "Time for Horner's Rule method (" << size << "):\t\t\t" << durationHorner.count() << " milliseconds\n";
+    std::cout << "Time for Horner's Rule method (multithreaded) (" << size << "):\t" << durationHornerMT.count() << " milliseconds\n";
   }
   else {
     size = "small input";
@@ -322,18 +322,18 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool 
     auto durationBruteForceMT = std::chrono::duration_cast < std::chrono::microseconds > (endBruteForceMT - startBruteForceMT);
     auto durationHorner = std::chrono::duration_cast < std::chrono::microseconds > (endHorner - startHorner);
     auto durationHornerMT = std::chrono::duration_cast < std::chrono::microseconds > (endHornerMT - startHornerMT);
-    std::cout << "Time for Brute Force method (" << size << "): " << durationBruteForce.count() << " microseconds\n";
-    std::cout << "Time for Brute Force multithreaded method (" << size << "): " << durationBruteForceMT.count() << " microseconds\n";
-    std::cout << "Time for Horner's Rule (" << size << "): " << durationHorner.count() << " microseconds\n";
-    std::cout << "Time for Horner's Rule(multithreaded) (" << size << "): " << durationHornerMT.count() << " microseconds\n";
+    std::cout << "Time for Brute Force method (" << size << "):\t\t\t" << durationBruteForce.count() << " microseconds\n";
+    std::cout << "Time for Brute Force method (multithreaded) (" << size << "):\t" << durationBruteForceMT.count() << " microseconds\n";
+    std::cout << "Time for Horner's Rule method (" << size << "):\t\t\t" << durationHorner.count() << " microseconds\n";
+    std::cout << "Time for Horner's Rule method (multithreaded) (" << size << "):\t" << durationHornerMT.count() << " microseconds\n";
   }
 
   if (giveResults) {
     // Print the results
     gmp_printf("Result (Brute Force): %Zd\n", resultBruteForce);
-    gmp_printf("Result (Brute Force MT): %Zd\n", resultBruteForceMT);
+    gmp_printf("Result (Brute Force multithreaded): %Zd\n", resultBruteForceMT);
     gmp_printf("Result (Horner's Rule): %Zd\n", resultHorner);
-    gmp_printf("Result (Horner's Rule MT): %Zd\n", resultHornerMT);
+    gmp_printf("Result (Horner's Rule multithreaded): %Zd\n", resultHornerMT);
   }
 
   // Compare results of both methods and print a message indicating whether they match.
