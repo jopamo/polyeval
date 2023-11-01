@@ -28,6 +28,21 @@ External files: The GNU Multiple Precision Arithmetic Library
 // Global variable for the random state used by the GMP random number generation functions.
 gmp_randstate_t state;
 
+void printUsage(const char* programName) {
+  std::cout << "Usage: " << programName << " <Number of coefficients> <Length in digits> [OPTIONS]" << std::endl;
+  std::cout << "Example: " << programName << " 100 200 [OPTIONS]" << std::endl;
+  std::cout << std::endl;
+  std::cout << "Options:" << std::endl;
+  std::cout << "  -r, --results     Print the benchmarking results." << std::endl;
+  std::cout << "  -p, --print-poly  Print the generated polynomial." << std::endl;
+  std::cout << "  -x, --print-x     Print the randomly generated x value." << std::endl;
+  std::cout << std::endl;
+  std::cout << "Description:" << std::endl;
+  std::cout << "  This program evaluates a polynomial with randomly generated coefficients using various methods." << std::endl;
+  std::cout << "  The user can specify the number of coefficients and the length in digits of each coefficient." << std::endl;
+  std::cout << "  Additional options allow for the printing of results, the polynomial, or the x value used in the evaluation." << std::endl;
+}
+
 // Function to initialize the global random state variable using the Mersenne
 // Twister algorithm and current time as seed.
 void initRandState() {
@@ -342,10 +357,10 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool 
   int comparison3 = mpz_cmp(resultBruteForceMT, resultHornerMT);
 
   if (comparison == 0 && comparison2 == 0 && comparison3 == 0) {
-    std::cout << "Results (" << size << ") match.\n";
+    std::cout << "\nResults (" << size << ") match.\n";
   }
   else {
-    std::cout << "Results (" << size << ") do not match.\n";
+    std::cout << "\nResults (" << size << ") do not match.\n";
   }
 
   // Clear allocated memory for result variables.
@@ -364,10 +379,14 @@ void clearPolyData(std::vector < mpz_t > & coefficients, mpz_t & x) {
   mpz_clear(x);
 }
 
-void processPoly(int n, int d, bool giveResults, bool givePoly) {
+void processPoly(int n, int d, bool giveResults, bool givePoly, bool giveX) {
   mpz_t x;
   mpz_init(x);
   randInt(x, d); // Generating random integer 'x'
+
+  if (giveX) {
+    gmp_printf("Value for x: %Zd\n\n", x);
+  }
 
   auto coefficients = generateCoefficients(n, d); // Generating coefficients
 
@@ -381,12 +400,13 @@ void processPoly(int n, int d, bool giveResults, bool givePoly) {
   clearPolyData(coefficients, x); // Clearing polynomial data
 }
 
-bool parseArgs(int argc, char* argv[], int& n, int& d, bool& giveResults, bool& givePoly) {
+bool parseArgs(int argc, char* argv[], int& n, int& d, bool& giveResults, bool& printPoly, bool& giveX) {
   giveResults = false;
-  givePoly = false;
+  printPoly = false;
+  giveX = false;
 
-  if (argc < 3 || argc > 5) {
-    std::cerr << "Usage: " << argv[0] << " <num_coefficients> <length_in_digits> [-r | --results] [-p | --print-poly]" << std::endl;
+  if (argc < 3 || argc > 6) {
+    printUsage(argv[0]);
     return false;
   }
 
@@ -398,16 +418,20 @@ bool parseArgs(int argc, char* argv[], int& n, int& d, bool& giveResults, bool& 
       giveResults = true;
     }
     else if (strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "--print-poly") == 0) {
-      givePoly = true;
+      printPoly = true;
+    }
+    else if (strcmp(argv[i], "-x") == 0 || strcmp(argv[i], "--print-x") == 0) {
+      giveX = true;
     }
     else {
-      std::cerr << "Invalid option. Use -r or --results to give results, and -p or --print-poly to print polynomial." << std::endl;
+      std::cerr << "Invalid option: " << argv[i] << std::endl;
+      printUsage(argv[0]);
       return false;
     }
   }
 
   if (n <= 0 || d <= 0) {
-    std::cerr << "Both the number of coefficients and the length in digits should be greater than 0." << std::endl;
+    std::cerr << "Both the number of coefficients and the length in digits should be positive." << std::endl;
     return false;
   }
   return true;
@@ -417,13 +441,16 @@ int main(int argc, char* argv[]) {
   initRandState(); // Initialize random state
 
   int n, d;
-  bool giveResults, givePoly;
+  bool giveResults, givePoly, giveX;
 
-  if (!parseArgs(argc, argv, n, d, giveResults, givePoly)) {
+  if (!parseArgs(argc, argv, n, d, giveResults, givePoly, giveX)) {
     return 1;
   }
 
-  processPoly(n, d, giveResults, givePoly);
+  std::cout << "Value for n: " << n << std::endl;
+  std::cout << "Value for d: " << d << std::endl;
+
+  processPoly(n, d, giveResults, givePoly, giveX);
 
   gmp_randclear(state); // Clear global random state variable
 
