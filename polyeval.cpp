@@ -289,86 +289,79 @@ std::vector < mpz_t > generateCoefficients(int n, int d) {
 // Function to evaluate and benchmark a polynomial using both brute-force and
 // Horner's methods, and print results.
 void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool giveResults) {
-  mpz_t resultBruteForce, resultBruteForceMT, resultHorner, resultHornerMT;
-  mpz_init(resultBruteForce);
-  mpz_init(resultBruteForceMT);
-  mpz_init(resultHorner);
-  mpz_init(resultHornerMT);
+    mpz_t resultBruteForce, resultBruteForceMT, resultHorner, resultHornerMT;
+    mpz_init(resultBruteForce);
+    mpz_init(resultBruteForceMT);
+    mpz_init(resultHorner);
+    mpz_init(resultHornerMT);
 
-  const char * size;
+    // Start timing for brute-force method.
+    auto startBruteForce = std::chrono::high_resolution_clock::now();
+    evalPolyBrute(resultBruteForce, coefficients, x);
+    auto endBruteForce = std::chrono::high_resolution_clock::now();
 
-  // Start timing for brute-force method.
-  auto startBruteForce = std::chrono::high_resolution_clock::now();
-  evalPolyBrute(resultBruteForce, coefficients, x);
-  auto endBruteForce = std::chrono::high_resolution_clock::now();
+    // Start timing for brute-force mt method.
+    auto startBruteForceMT = std::chrono::high_resolution_clock::now();
+    evalPolyBruteMT(resultBruteForceMT, coefficients, x);
+    auto endBruteForceMT = std::chrono::high_resolution_clock::now();
 
-  // Start timing for brute-force MT method.
-  auto startBruteForceMT = std::chrono::high_resolution_clock::now();
-  evalPolyBruteMT(resultBruteForceMT, coefficients, x);
-  auto endBruteForceMT = std::chrono::high_resolution_clock::now();
+    // Start timing for horner method.
+    auto startHorner = std::chrono::high_resolution_clock::now();
+    evalPolyHorner(resultHorner, coefficients, x);
+    auto endHorner = std::chrono::high_resolution_clock::now();
 
-  // Start timing for Horner's Rule method.
-  auto startHorner = std::chrono::high_resolution_clock::now();
-  evalPolyHorner(resultHorner, coefficients, x);
-  auto endHorner = std::chrono::high_resolution_clock::now();
+    // Start timing for horner mt method.
+    auto startHornerMT = std::chrono::high_resolution_clock::now();
+    evalPolyHornerMT(resultHornerMT, coefficients, x);
+    auto endHornerMT = std::chrono::high_resolution_clock::now();
 
-  // Start timing for Horner's Rule MT method.
-  auto startHornerMT = std::chrono::high_resolution_clock::now();
-  evalPolyHornerMT(resultHornerMT, coefficients, x);
-  auto endHornerMT = std::chrono::high_resolution_clock::now();
+    if (giveResults) {
+        // Print the results
+        gmp_printf("Result (Brute Force): %Zd\n", resultBruteForce);
+        gmp_printf("Result (Brute Force MT): %Zd\n", resultBruteForceMT);
+        gmp_printf("Result (Horner's Rule): %Zd\n", resultHorner);
+        gmp_printf("Result (Horner's Rule MT): %Zd\n", resultHornerMT);
+    }
 
-  // Choose appropriate timing unit based on input size and print results.
-  if (coefficients.size() > 500) { // "large" is more than 500 coefficients
-    size = "large input";
+    auto durationBruteForce = std::chrono::duration_cast<std::chrono::microseconds>(endBruteForce - startBruteForce);
+    auto durationBruteForceMT = std::chrono::duration_cast<std::chrono::microseconds>(endBruteForceMT - startBruteForceMT);
+    auto durationHorner = std::chrono::duration_cast<std::chrono::microseconds>(endHorner - startHorner);
+    auto durationHornerMT = std::chrono::duration_cast<std::chrono::microseconds>(endHornerMT - startHornerMT);
 
-    auto durationBruteForce = std::chrono::duration_cast < std::chrono::milliseconds > (endBruteForce - startBruteForce);
-    auto durationBruteForceMT = std::chrono::duration_cast < std::chrono::milliseconds > (endBruteForceMT - startBruteForceMT);
-    auto durationHorner = std::chrono::duration_cast < std::chrono::milliseconds > (endHorner - startHorner);
-    auto durationHornerMT = std::chrono::duration_cast < std::chrono::milliseconds > (endHornerMT - startHornerMT);
-    std::cout << "Time for Brute Force method (" << size << "):\t\t\t" << durationBruteForce.count() << " milliseconds\n";
-    std::cout << "Time for Brute Force method (multithreaded) (" << size << "):\t" << durationBruteForceMT.count() << " milliseconds\n";
-    std::cout << "Time for Horner's Rule method (" << size << "):\t\t\t" << durationHorner.count() << " milliseconds\n";
-    std::cout << "Time for Horner's Rule method (multithreaded) (" << size << "):\t" << durationHornerMT.count() << " milliseconds\n";
-  }
-  else {
-    size = "small input";
+    // Function to print time appropriately
+    auto printTime = [](const std::chrono::microseconds& duration, const char* method) {
+      if (duration.count() >= 1000) {
+        std::cout << "Time for " << method << static_cast<float>(duration.count()) / 1000.0 << " milliseconds\n";
+      }
+      else {
+        std::cout << "Time for " << method << duration.count() << " microseconds\n";
+      }
+    };
 
-    auto durationBruteForce = std::chrono::duration_cast < std::chrono::microseconds > (endBruteForce - startBruteForce);
-    auto durationBruteForceMT = std::chrono::duration_cast < std::chrono::microseconds > (endBruteForceMT - startBruteForceMT);
-    auto durationHorner = std::chrono::duration_cast < std::chrono::microseconds > (endHorner - startHorner);
-    auto durationHornerMT = std::chrono::duration_cast < std::chrono::microseconds > (endHornerMT - startHornerMT);
-    std::cout << "Time for Brute Force method (" << size << "):\t\t\t" << durationBruteForce.count() << " microseconds\n";
-    std::cout << "Time for Brute Force method (multithreaded) (" << size << "):\t" << durationBruteForceMT.count() << " microseconds\n";
-    std::cout << "Time for Horner's Rule method (" << size << "):\t\t\t" << durationHorner.count() << " microseconds\n";
-    std::cout << "Time for Horner's Rule method (multithreaded) (" << size << "):\t" << durationHornerMT.count() << " microseconds\n";
-  }
+    printTime(durationBruteForce, "Brute Force method:\t\t\t");
+    printTime(durationBruteForceMT, "Brute Force method (multithreaded):\t");
+    printTime(durationHorner, "Horner's method:\t\t\t");
+    printTime(durationHornerMT, "Horner's method (multithreaded):\t");
 
-  if (giveResults) {
-    // Print the results
-    gmp_printf("Result (Brute Force): %Zd\n", resultBruteForce);
-    gmp_printf("Result (Brute Force multithreaded): %Zd\n", resultBruteForceMT);
-    gmp_printf("Result (Horner's Rule): %Zd\n", resultHorner);
-    gmp_printf("Result (Horner's Rule multithreaded): %Zd\n", resultHornerMT);
-  }
+    // Compare results of both methods and print a message indicating whether they match.
+    int comparison = mpz_cmp(resultBruteForce, resultHorner);
+    int comparison2 = mpz_cmp(resultBruteForce, resultBruteForceMT);
+    int comparison3 = mpz_cmp(resultBruteForceMT, resultHornerMT);
 
-  // Compare results of both methods and print a message indicating whether they match.
-  int comparison = mpz_cmp(resultBruteForce, resultHorner);
-  int comparison2 = mpz_cmp(resultBruteForce, resultBruteForceMT);
-  int comparison3 = mpz_cmp(resultBruteForceMT, resultHornerMT);
+    if (comparison == 0 && comparison2 == 0 && comparison3 == 0) {
+      std::cout << "\nResults match.\n";
+    }
+    else {
+      std::cout << "\nResults do not match.\n";
+    }
 
-  if (comparison == 0 && comparison2 == 0 && comparison3 == 0) {
-    std::cout << "\nResults (" << size << ") match.\n";
-  }
-  else {
-    std::cout << "\nResults (" << size << ") do not match.\n";
-  }
-
-  // Clear allocated memory for result variables.
-  mpz_clear(resultBruteForce);
-  mpz_clear(resultHorner);
-  mpz_clear(resultBruteForceMT);
-  mpz_clear(resultHornerMT);
+    // Clear allocated memory for result variables.
+    mpz_clear(resultBruteForce);
+    mpz_clear(resultHorner);
+    mpz_clear(resultBruteForceMT);
+    mpz_clear(resultHornerMT);
 }
+
 
 void clearPolyData(std::vector < mpz_t > & coefficients, mpz_t & x) {
   // Iterate over each coefficient in the vector and clear the allocated memory.
@@ -448,7 +441,7 @@ int main(int argc, char* argv[]) {
   }
 
   std::cout << "Value for n: " << n << std::endl;
-  std::cout << "Value for d: " << d << std::endl;
+  std::cout << "Value for d: " << d << std::endl << std::endl;
 
   processPoly(n, d, giveResults, givePoly, giveX);
 
