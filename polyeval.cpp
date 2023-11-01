@@ -62,9 +62,9 @@ void evalPolyBrute(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_t x
 
     mpz_t term, x_power;
     mpz_init(term);
-    mpz_init_set_ui(x_power, 1); // Initialize x_power to x^0 = 1
+    mpz_init_set_ui(x_power, 1);
     if (start != 0) {
-        mpz_pow_ui(x_power, x, start); // Initialize x_power to x^start if start is non-zero
+        mpz_pow_ui(x_power, x, start);
     }
 
     for (size_t i = start; i < end; ++i) {
@@ -144,22 +144,21 @@ void evalPolyHornerMT(mpz_t result, const std::vector<mpz_t>& coefficients, mpz_
         t.join();
     }
 
-    mpz_t multiplier, temp;
-    mpz_init(multiplier);
+    mpz_t powerOfX, temp;
+    mpz_init(powerOfX);
     mpz_init(temp);
-    mpz_set_ui(multiplier, 1);
+    mpz_set_ui(powerOfX, 1);
 
     for (size_t t = 0; t < numThreads; ++t) {
-        mpz_mul(temp, localResults[t], multiplier);
+        mpz_pow_ui(temp, x, termsPerThread * t);
+
+        mpz_mul(temp, localResults[t], temp);
         mpz_add(result, result, temp);
 
-        for (size_t i = 0; i < termsPerThread; ++i) {
-            mpz_mul(multiplier, multiplier, x);
-        }
         mpz_clear(localResults[t]);
     }
 
-    mpz_clear(multiplier);
+    mpz_clear(powerOfX);
     mpz_clear(temp);
 }
 
@@ -296,7 +295,7 @@ int main() {
 
     // processPoly(int n, int d, const char* size)
     processPoly(32, 32, "small input");  // Process polynomial for small input
-    processPoly(10000, 1000, "large input");  // Process polynomial for large input
+    processPoly(5000, 1000, "large input");  // Process polynomial for large input
 
     gmp_randclear(state);  // Clear global random state variable
 
