@@ -272,13 +272,14 @@ std::vector < mpz_t > generateCoefficients(int n, int d) {
 
 // Function to evaluate and benchmark a polynomial using both brute-force and
 // Horner's methods, and print results.
-void benchmarkAndEvaluate(const std::vector < mpz_t > & coefficients, mpz_t x,
-  const char * size) {
+void benchmarkAndEvaluate(const std::vector < mpz_t > & coefficients, mpz_t x) {
   mpz_t resultBruteForce, resultBruteForceMT, resultHorner, resultHornerMT;
   mpz_init(resultBruteForce);
   mpz_init(resultBruteForceMT);
   mpz_init(resultHorner);
   mpz_init(resultHornerMT);
+
+  const char * size;
 
   // Start timing for brute-force method.
   auto startBruteForce = std::chrono::high_resolution_clock::now();
@@ -301,7 +302,9 @@ void benchmarkAndEvaluate(const std::vector < mpz_t > & coefficients, mpz_t x,
   auto endHornerMT = std::chrono::high_resolution_clock::now();
 
   // Choose appropriate timing unit based on input size and print results.
-  if (strcmp(size, "large input") == 0) {
+  if (coefficients.size() > 1000) { // "large" is more than 1000 coefficients
+    size = "large input";
+
     auto durationBruteForce = std::chrono::duration_cast < std::chrono::milliseconds > (endBruteForce - startBruteForce);
     auto durationBruteForceMT = std::chrono::duration_cast < std::chrono::milliseconds > (endBruteForceMT - startBruteForceMT);
     auto durationHorner = std::chrono::duration_cast < std::chrono::milliseconds > (endHorner - startHorner);
@@ -310,7 +313,10 @@ void benchmarkAndEvaluate(const std::vector < mpz_t > & coefficients, mpz_t x,
     std::cout << "Time for Brute Force multithreaded method (" << size << "): " << durationBruteForceMT.count() << " milliseconds\n";
     std::cout << "Time for Horner's Rule (" << size << "): " << durationHorner.count() << " milliseconds\n";
     std::cout << "Time for Horner's Rule(multithreaded) (" << size << "): " << durationHornerMT.count() << " milliseconds\n";
-  } else {
+  }
+  else {
+    size = "small input";
+
     auto durationBruteForce = std::chrono::duration_cast < std::chrono::microseconds > (endBruteForce - startBruteForce);
     auto durationBruteForceMT = std::chrono::duration_cast < std::chrono::microseconds > (endBruteForceMT - startBruteForceMT);
     auto durationHorner = std::chrono::duration_cast < std::chrono::microseconds > (endHorner - startHorner);
@@ -334,7 +340,8 @@ void benchmarkAndEvaluate(const std::vector < mpz_t > & coefficients, mpz_t x,
 
   if (comparison == 0 && comparison2 == 0 && comparison3 == 0) {
     std::cout << "Results (" << size << ") match.\n";
-  } else {
+  }
+  else {
     std::cout << "Results (" << size << ") do not match.\n";
   }
 
@@ -354,8 +361,7 @@ void clearPolyData(std::vector < mpz_t > & coefficients, mpz_t & x) {
   mpz_clear(x);
 }
 
-void processPoly(int n, int d,
-  const char * size) {
+void processPoly(int n, int d) {
   mpz_t x;
   mpz_init(x);
   randInt(x, d); // Generating random integer 'x'
@@ -363,7 +369,7 @@ void processPoly(int n, int d,
   auto coefficients = generateCoefficients(n, d); // Generating coefficients
   // This can produces long output to screen when polynomials are long
   //printPoly(coefficients, x);  // Printing polynomial
-  benchmarkAndEvaluate(coefficients, x, size); // Benchmarking and evaluating polynomial
+  benchmarkAndEvaluate(coefficients, x); // Benchmarking and evaluating polynomial
 
   clearPolyData(coefficients, x); // Clearing polynomial data
 }
@@ -371,9 +377,9 @@ void processPoly(int n, int d,
 int main() {
   initRandState(); // Initialize random state
 
-  // Syntax: processPoly(int n, int d, const char* size)
-  processPoly(32, 32, "small input"); // Process polynomial for small input
-  processPoly(5000, 1000, "large input"); // Process polynomial for large input
+  // Syntax: processPoly(int n, int d)
+  processPoly(32, 32); // Process polynomial for small input
+  processPoly(5000, 1000); // Process polynomial for large input
 
   gmp_randclear(state); // Clear global random state variable
 
