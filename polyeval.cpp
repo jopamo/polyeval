@@ -246,7 +246,8 @@ void printPoly(const std::vector < mpz_t > & coefficients, mpz_t x) {
       if (i == 0) {
         // Print coefficient if it's the constant term.
         std::cout << mpz_get_str(nullptr, 10, coefficients[i]);
-      } else {
+      }
+      else {
         // Print coefficient and corresponding power of x.
         std::cout << mpz_get_str(nullptr, 10, coefficients[i]) << "x^" << i;
         if (i > 0) {
@@ -272,7 +273,7 @@ std::vector < mpz_t > generateCoefficients(int n, int d) {
 
 // Function to evaluate and benchmark a polynomial using both brute-force and
 // Horner's methods, and print results.
-void benchmarkAndEvaluate(const std::vector < mpz_t > & coefficients, mpz_t x) {
+void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool giveResults) {
   mpz_t resultBruteForce, resultBruteForceMT, resultHorner, resultHornerMT;
   mpz_init(resultBruteForce);
   mpz_init(resultBruteForceMT);
@@ -325,8 +326,10 @@ void benchmarkAndEvaluate(const std::vector < mpz_t > & coefficients, mpz_t x) {
     std::cout << "Time for Brute Force multithreaded method (" << size << "): " << durationBruteForceMT.count() << " microseconds\n";
     std::cout << "Time for Horner's Rule (" << size << "): " << durationHorner.count() << " microseconds\n";
     std::cout << "Time for Horner's Rule(multithreaded) (" << size << "): " << durationHornerMT.count() << " microseconds\n";
+  }
 
-    // Print the results and elapsed times
+  if (giveResults) {
+    // Print the results
     gmp_printf("Result (Brute Force): %Zd\n", resultBruteForce);
     gmp_printf("Result (Brute Force MT): %Zd\n", resultBruteForceMT);
     gmp_printf("Result (Horner's Rule): %Zd\n", resultHorner);
@@ -361,27 +364,47 @@ void clearPolyData(std::vector < mpz_t > & coefficients, mpz_t & x) {
   mpz_clear(x);
 }
 
-void processPoly(int n, int d) {
+void processPoly(int n, int d, bool giveResults, bool givePoly) {
   mpz_t x;
   mpz_init(x);
   randInt(x, d); // Generating random integer 'x'
 
   auto coefficients = generateCoefficients(n, d); // Generating coefficients
+
   // This can produces long output to screen when polynomials are long
-  //printPoly(coefficients, x);  // Printing polynomial
-  benchmarkAndEvaluate(coefficients, x); // Benchmarking and evaluating polynomial
+  if (givePoly) {
+    printPoly(coefficients, x);  // Printing polynomial
+  }
+
+  benchmarkAndEvaluate(coefficients, x, giveResults); // Benchmarking and evaluating polynomial
 
   clearPolyData(coefficients, x); // Clearing polynomial data
 }
 
-bool parseArgs(int argc, char* argv[], int& n, int& d) {
-  if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " <Number of coefficients> <Length in digits>" << std::endl;
+bool parseArgs(int argc, char* argv[], int& n, int& d, bool& giveResults, bool& givePoly) {
+  giveResults = false;
+  givePoly = false;
+
+  if (argc < 3 || argc > 5) {
+    std::cerr << "Usage: " << argv[0] << " <num_coefficients> <length_in_digits> [-r | --results] [-p | --print-poly]" << std::endl;
     return false;
   }
 
   n = std::stoi(argv[1]);
   d = std::stoi(argv[2]);
+
+  for (int i = 3; i < argc; i++) {
+    if (strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--results") == 0) {
+      giveResults = true;
+    }
+    else if (strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "--print-poly") == 0) {
+      givePoly = true;
+    }
+    else {
+      std::cerr << "Invalid option. Use -r or --results to give results, and -p or --print-poly to print polynomial." << std::endl;
+      return false;
+    }
+  }
 
   if (n <= 0 || d <= 0) {
     std::cerr << "Both the number of coefficients and the length in digits should be greater than 0." << std::endl;
@@ -394,12 +417,13 @@ int main(int argc, char* argv[]) {
   initRandState(); // Initialize random state
 
   int n, d;
+  bool giveResults, givePoly;
 
-  if (!parseArgs(argc, argv, n, d)) {
+  if (!parseArgs(argc, argv, n, d, giveResults, givePoly)) {
     return 1;
   }
 
-  processPoly(n, d);
+  processPoly(n, d, giveResults, givePoly);
 
   gmp_randclear(state); // Clear global random state variable
 
