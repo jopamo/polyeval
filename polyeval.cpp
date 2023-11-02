@@ -188,7 +188,17 @@ void evalPolyHorner(mpz_t result, // Resulting mpz_t value where the final evalu
   }
 }
 
-// Function to evaluate a polynomial using the Horner's method in a multithreaded fashion
+/*
+In a multithreaded approach to evaluating a polynomial, each thread is responsible
+for a specific segment of the polynomial. After each thread calculates its segment,
+these results must be correctly positioned to represent their place in the overall
+polynomial. This "shifting" ensures that every segment aligns with its corresponding
+power of x in the polynomial. For example, if one thread calculated a coefficient for
+x^3 and another for x^2, the result from the second thread would need to be shifted
+by multiplying it with x^2. This ensures that when all the segments are combined, the
+segments fit together accurately to produce the final value of the polynomial for a
+given x.
+*/
 void evalPolyHornerMT(mpz_t result, // Resulting mpz_t value where the final evaluation will be stored
                       const std::vector < mpz_t > & coefficients, // The polynomial coefficients
                       mpz_t x) { // The x value at which polynomial is evaluated
