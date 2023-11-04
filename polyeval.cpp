@@ -16,6 +16,7 @@ External files: The GNU Multiple Precision Arithmetic Library
                 Commonly packaged as 'gmp', ensure the header gmp.h is around as well
 */
 
+#include <cassert>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -24,9 +25,6 @@ External files: The GNU Multiple Precision Arithmetic Library
 #include <iostream>
 #include <thread>
 #include <vector>
-
-// Global variable for the random state used by the GMP random number generation functions.
-gmp_randstate_t state;
 
 void printUsage(const char* programName) {
   std::cout << "Usage: " << programName << " <Number of coefficients> <Length in digits> [OPTIONS]" << std::endl;
@@ -43,40 +41,33 @@ void printUsage(const char* programName) {
   std::cout << "  Additional options allow for the printing of results, the polynomial, or the x value used in the evaluation." << std::endl;
 }
 
-// Function to initialize the global random state variable using the Mersenne
-// Twister algorithm and current time as seed.
-void initRandState() {
-  gmp_randinit_mt(state);
-  gmp_randseed_ui(state, std::time(0));
+// Function to initialize and return a new random state
+void initRandState(gmp_randstate_t randState) {
+  gmp_randinit_mt(randState); // or another suitable initialization method
+  gmp_randseed_ui(randState, static_cast<unsigned long>(std::time(nullptr)));
 }
 
 // Function to generate a random integer with a specified number of digits ('d').
-void randInt(mpz_t randomInt, gmp_randstate_t state, int d) {
+void randInt(mpz_t randomInt, gmp_randstate_t randState, int d) {
   assert(d > 0); // Ensure that the number of digits is greater than 0.
 
   mpz_t lowerLimit;
   mpz_init(lowerLimit);
-
-  // Calculate lower limit (10^(d-1)) - the smallest number with 'd' digits.
-  mpz_ui_pow_ui(lowerLimit, 10, d - 1);
+  mpz_ui_pow_ui(lowerLimit, 10, d - 1); // 10^(d-1)
 
   mpz_t upperLimit;
   mpz_init(upperLimit);
+  mpz_ui_pow_ui(upperLimit, 10, d); // 10^d
 
-  // Calculate upper limit (10^d) - the smallest number with 'd'+1 digits.
-  mpz_ui_pow_ui(upperLimit, 10, d);
-
-  // Generate a random integer in the range [10^(d-1), 10^d).
-  mpz_urandomm(randomInt, state, upperLimit);
+  mpz_urandomm(randomInt, randState, upperLimit);
   mpz_add(randomInt, randomInt, lowerLimit);
 
-  // Ensure the number has 'd' digits by checking if it's less than lower limit.
   if (mpz_cmp(randomInt, lowerLimit) < 0) {
     mpz_add(randomInt, randomInt, lowerLimit);
   }
 
-  mpz_clear(lowerLimit); // Clear allocated memory for lowerLimit variable.
-  mpz_clear(upperLimit); // Clear allocated memory for upperLimit variable.
+  mpz_clear(lowerLimit);
+  mpz_clear(upperLimit);
 }
 
 // Function to evaluate a polynomial using the brute force method.
@@ -304,11 +295,12 @@ void printPoly(const std::vector < mpz_t > & coefficients, mpz_t x) {
 
 // Function to generate and initialize coefficients for a polynomial of
 // degree 'n' with 'd' digits each.
-std::vector < mpz_t > generateCoefficients(int n, int d) {
-  std::vector < mpz_t > coefficients(n + 1);
+std::vector<mpz_t> generateCoefficients(gmp_randstate_t randState, int n, int d) {
+  assert(d > 0); // Ensure that the number of digits 'd' is greater than 0
+  std::vector<mpz_t> coefficients(n + 1);
   for (int i = 0; i <= n; ++i) {
     mpz_init(coefficients[i]);
-    randInt(coefficients[i], d); // Generate random coefficient with 'd' digits.
+    randInt(coefficients[i], randState, d); // Generate random coefficient with 'd' digits.
   }
   return coefficients;
 }
@@ -399,16 +391,16 @@ void clearPolyData(std::vector < mpz_t > & coefficients, mpz_t & x) {
   mpz_clear(x);
 }
 
-void processPoly(int n, int d, bool giveResults, bool givePoly, bool giveX) {
+void processPoly(gmp_randstate_t randState, int n, int d, bool giveResults, bool givePoly, bool giveX) {
   mpz_t x;
   mpz_init(x);
-  randInt(x, d); // Generating random integer 'x'
+  randInt(x, randState, d); // Generating random integer 'x'
 
   if (giveX) {
     gmp_printf("Value for x: %Zd\n\n", x);
   }
 
-  auto coefficients = generateCoefficients(n, d); // Generating coefficients
+  auto coefficients = generateCoefficients(randState, n, d); // Generating coefficients
 
   // This can produces long output to screen when polynomials are long
   if (givePoly) {
@@ -458,7 +450,8 @@ bool parseArgs(int argc, char* argv[], int& n, int& d, bool& giveResults, bool& 
 }
 
 int main(int argc, char* argv[]) {
-  initRandState(); // Initialize random state
+  gmp_randstate_t randState; // Declare the random state
+  initRandState(randState);  // Initialize the random state
 
   int n, d;
   bool giveResults, givePoly, giveX;
@@ -470,9 +463,9 @@ int main(int argc, char* argv[]) {
   std::cout << "Value for n: " << n << std::endl;
   std::cout << "Value for d: " << d << std::endl << std::endl;
 
-  processPoly(n, d, giveResults, givePoly, giveX);
+  processPoly(randState, n, d, giveResults, givePoly, giveX);
 
-  gmp_randclear(state); // Clear global random state variable
+  gmp_randclear(randState); // Clear global random state variable
 
   return 0;
 }
