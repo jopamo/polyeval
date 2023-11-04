@@ -208,6 +208,7 @@ void evalPolyHornerMT(mpz_t result, // Resulting mpz_t value where the final eva
 
   // Determine the number of threads the hardware can run concurrently
   const size_t numThreads = std::thread::hardware_concurrency();
+  std::cout << "Number of Threads: " << numThreads << std::endl;
 
   // Create vectors to hold thread objects and their corresponding local results
   std::vector < std::thread > threads(numThreads);
