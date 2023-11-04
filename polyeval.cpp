@@ -49,23 +49,25 @@ void initRandState(gmp_randstate_t randState) {
 
 // Function to generate a random integer with a specified number of digits ('d').
 void randInt(mpz_t randomInt, gmp_randstate_t randState, int d) {
-  assert(d > 0); // Ensure that the number of digits is greater than 0.
+  assert(d > 0); // Ensure that the number of digits 'd' is greater than 0.
 
   mpz_t lowerLimit;
   mpz_init(lowerLimit);
-  mpz_ui_pow_ui(lowerLimit, 10, d - 1); // 10^(d-1)
+  mpz_ui_pow_ui(lowerLimit, 10, d - 1); // Set the lower limit to 10^(d-1) to ensure 'd' digits.
 
   mpz_t upperLimit;
   mpz_init(upperLimit);
-  mpz_ui_pow_ui(upperLimit, 10, d); // 10^d
+  mpz_ui_pow_ui(upperLimit, 10, d); // Set the upper limit to 10^d.
 
-  mpz_urandomm(randomInt, randState, upperLimit);
-  mpz_add(randomInt, randomInt, lowerLimit);
+  mpz_urandomm(randomInt, randState, upperLimit); // Generate a random number in [0, 10^d).
+  mpz_add(randomInt, randomInt, lowerLimit); // Shift the random number to ensure it has 'd' digits.
 
+  // In case adding the lower limit causes an overflow, add the lower limit again.
   if (mpz_cmp(randomInt, lowerLimit) < 0) {
     mpz_add(randomInt, randomInt, lowerLimit);
   }
 
+  // Clear the mpz_t variables to free the allocated memory.
   mpz_clear(lowerLimit);
   mpz_clear(upperLimit);
 }
