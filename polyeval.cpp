@@ -16,7 +16,6 @@ External files: The GNU Multiple Precision Arithmetic Library
                 Commonly packaged as 'gmp', ensure the header gmp.h is around as well
 */
 
-#include <cassert>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -31,14 +30,17 @@ void printUsage(const char* programName) {
   std::cout << "Example: " << programName << " 100 200 [OPTIONS]" << std::endl;
   std::cout << std::endl;
   std::cout << "Options:" << std::endl;
-  std::cout << "  -r, --results     Print the benchmarking results." << std::endl;
+  std::cout << "  -r, --results     Print the resulting value." << std::endl;
   std::cout << "  -p, --print-poly  Print the generated polynomial." << std::endl;
   std::cout << "  -x, --print-x     Print the randomly generated x value." << std::endl;
+  std::cout << "  -b, --benchmark   Run slower methods to compare results." << std::endl;
   std::cout << std::endl;
   std::cout << "Description:" << std::endl;
-  std::cout << "  This program evaluates a polynomial with randomly generated coefficients using various methods." << std::endl;
-  std::cout << "  The user can specify the number of coefficients and the length in digits of each coefficient." << std::endl;
-  std::cout << "  Additional options allow for the printing of results, the polynomial, or the x value used in the evaluation." << std::endl;
+  std::cout << "  This program evaluates a polynomial with randomly generated coefficients using" << std::endl;
+  std::cout << "  various methods. The user can specify the number of coefficients (n) and the length" << std::endl;
+  std::cout << "  in digits (d) of each randomly generated coefficient and the random value of (x)." << std::endl;
+  std::cout << "  Additional options allow for the printing of resulting value, the polynomial solved," << std::endl;
+  std::cout << "  the x value used in the evaluation, and to run the slower methods for comparison." << std::endl;
 }
 
 // Function to initialize and return a new random state
@@ -49,8 +51,6 @@ void initRandState(gmp_randstate_t randState) {
 
 // Function to generate a random integer with a specified number of digits ('d').
 void randInt(mpz_t randomInt, gmp_randstate_t randState, int d) {
-  assert(d > 0); // Ensure that the number of digits 'd' is greater than 0.
-
   mpz_t lowerLimit;
   mpz_init(lowerLimit);
   mpz_ui_pow_ui(lowerLimit, 10, d - 1); // Set the lower limit to 10^(d-1) to ensure 'd' digits.
@@ -187,7 +187,7 @@ void evalPolyHorner(mpz_t result, // Resulting mpz_t value where the final evalu
 
   // Start evaluating the polynomial from the highest term down to the term specified by the 'start' index.
   // This loop represents the Horner's method of polynomial evaluation.
-  for (int i = end - 1; i >= static_cast < int > (start); --i) {
+    for (int i = end - 1; i >= static_cast < int > (start); --i) {
 
     // Multiply the current result by x
     mpz_mul(result, result, x);
@@ -217,7 +217,6 @@ void evalPolyHornerMT(mpz_t result, // Resulting mpz_t value where the final eva
 
   // Determine the number of threads the hardware can run concurrently
   const size_t numThreads = std::thread::hardware_concurrency();
-  std::cout << "Number of Threads: " << numThreads << std::endl;
 
   // Create vectors to hold thread objects and their corresponding local results
   std::vector < std::thread > threads(numThreads);
@@ -276,7 +275,7 @@ void evalPolyHornerMT(mpz_t result, // Resulting mpz_t value where the final eva
 void printPoly(const std::vector < mpz_t > & coefficients, mpz_t x) {
   std::cout << "Polynomial: P(x) = ";
   // Iterate through coefficients in reverse order to print in descending power of x.
-  for (int i = coefficients.size() - 1; i >= 0; --i) {
+  for (uintptr_t i = coefficients.size() - 1; i > 0; --i) {
     if (mpz_sgn(coefficients[i]) != 0) {
       if (i == 0) {
         // Print coefficient if it's the constant term.
@@ -300,7 +299,7 @@ void printPoly(const std::vector < mpz_t > & coefficients, mpz_t x) {
 std::vector<mpz_t> generateCoefficients(gmp_randstate_t randState, int n, int d) {
   assert(d > 0); // Ensure that the number of digits 'd' is greater than 0
   std::vector<mpz_t> coefficients(n + 1);
-  for (int i = 0; i <= n; ++i) {
+  for (int i = 0; i < n; ++i) {
     mpz_init(coefficients[i]);
     randInt(coefficients[i], randState, d); // Generate random coefficient with 'd' digits.
   }
@@ -309,45 +308,15 @@ std::vector<mpz_t> generateCoefficients(gmp_randstate_t randState, int n, int d)
 
 // Function to evaluate and benchmark a polynomial using both brute-force and
 // Horner's methods, and print results.
-void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool giveResults) {
-    mpz_t resultBruteForce, resultBruteForceMT, resultHorner, resultHornerMT;
-    mpz_init(resultBruteForce);
-    mpz_init(resultBruteForceMT);
-    mpz_init(resultHorner);
+void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool giveResults,  bool giveBench) {
+    mpz_t resultHornerMT;
     mpz_init(resultHornerMT);
 
-    // Start timing for brute-force method.
-    auto startBruteForce = std::chrono::high_resolution_clock::now();
-    evalPolyBrute(resultBruteForce, coefficients, x);
-    auto endBruteForce = std::chrono::high_resolution_clock::now();
+	mpz_t resultBruteForce, resultBruteForceMT, resultHorner;
 
-    // Start timing for brute-force mt method.
-    auto startBruteForceMT = std::chrono::high_resolution_clock::now();
-    evalPolyBruteMT(resultBruteForceMT, coefficients, x);
-    auto endBruteForceMT = std::chrono::high_resolution_clock::now();
-
-    // Start timing for horner method.
-    auto startHorner = std::chrono::high_resolution_clock::now();
-    evalPolyHorner(resultHorner, coefficients, x);
-    auto endHorner = std::chrono::high_resolution_clock::now();
-
-    // Start timing for horner mt method.
-    auto startHornerMT = std::chrono::high_resolution_clock::now();
-    evalPolyHornerMT(resultHornerMT, coefficients, x);
-    auto endHornerMT = std::chrono::high_resolution_clock::now();
-
-    if (giveResults) {
-        // Print the results
-        gmp_printf("Result (Brute Force): %Zd\n", resultBruteForce);
-        gmp_printf("Result (Brute Force MT): %Zd\n", resultBruteForceMT);
-        gmp_printf("Result (Horner's Rule): %Zd\n", resultHorner);
-        gmp_printf("Result (Horner's Rule MT): %Zd\n", resultHornerMT);
-    }
-
-    auto durationBruteForce = std::chrono::duration_cast<std::chrono::microseconds>(endBruteForce - startBruteForce);
-    auto durationBruteForceMT = std::chrono::duration_cast<std::chrono::microseconds>(endBruteForceMT - startBruteForceMT);
-    auto durationHorner = std::chrono::duration_cast<std::chrono::microseconds>(endHorner - startHorner);
-    auto durationHornerMT = std::chrono::duration_cast<std::chrono::microseconds>(endHornerMT - startHornerMT);
+	mpz_init(resultBruteForce);
+    mpz_init(resultBruteForceMT);
+    mpz_init(resultHorner);
 
     // Function to print time appropriately
     auto printTime = [](const std::chrono::microseconds& duration, const char* method) {
@@ -359,41 +328,79 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool 
       }
     };
 
-    printTime(durationBruteForce, "Brute Force method:\t\t\t");
-    printTime(durationBruteForceMT, "Brute Force method (multithreaded):\t");
-    printTime(durationHorner, "Horner's method:\t\t\t");
-    printTime(durationHornerMT, "Horner's method (multithreaded):\t");
+    if (giveBench) {
+      // Start timing for brute-force method.
+      auto startBruteForce = std::chrono::high_resolution_clock::now();
+      evalPolyBrute(resultBruteForce, coefficients, x);
+      auto endBruteForce = std::chrono::high_resolution_clock::now();
+	  auto durationBruteForce = std::chrono::duration_cast<std::chrono::microseconds>(endBruteForce - startBruteForce);
+      printTime(durationBruteForce, "Brute Force method:\t\t\t");
 
-    // Compare results of both methods and print a message indicating whether they match.
-    int comparison = mpz_cmp(resultBruteForce, resultHorner);
-    int comparison2 = mpz_cmp(resultBruteForce, resultBruteForceMT);
-    int comparison3 = mpz_cmp(resultBruteForceMT, resultHornerMT);
+      // Start timing for brute-force mt method.
+      auto startBruteForceMT = std::chrono::high_resolution_clock::now();
+      evalPolyBruteMT(resultBruteForceMT, coefficients, x);
+      auto endBruteForceMT = std::chrono::high_resolution_clock::now();
+      auto durationBruteForceMT = std::chrono::duration_cast<std::chrono::microseconds>(endBruteForceMT - startBruteForceMT);
+      printTime(durationBruteForceMT, "Brute Force method (multithreaded):\t");
 
-    if (comparison == 0 && comparison2 == 0 && comparison3 == 0) {
-      std::cout << "\nResults match.\n";
+      // Start timing for horner method.
+      auto startHorner = std::chrono::high_resolution_clock::now();
+      evalPolyHorner(resultHorner, coefficients, x);
+      auto endHorner = std::chrono::high_resolution_clock::now();
+	  auto durationHorner = std::chrono::duration_cast<std::chrono::microseconds>(endHorner - startHorner);
+      printTime(durationHorner, "Horner's method:\t\t\t");
     }
-    else {
-      std::cout << "\nResults do not match.\n";
+
+    // Start timing for horner mt method.
+    auto startHornerMT = std::chrono::high_resolution_clock::now();
+    evalPolyHornerMT(resultHornerMT, coefficients, x);
+    auto endHornerMT = std::chrono::high_resolution_clock::now();
+  	auto durationHornerMT = std::chrono::duration_cast<std::chrono::microseconds>(endHornerMT - startHornerMT);
+	printTime(durationHornerMT, "Horner's method (multithreaded):\t");
+
+    // Print the results
+    if (giveResults) {
+		if (giveBench) {
+          gmp_printf("Result (Brute Force): %Zd\n", resultBruteForce);
+          gmp_printf("Result (Brute Force MT): %Zd\n", resultBruteForceMT);
+          gmp_printf("Result (Horner's Rule): %Zd\n", resultHorner);
+        }
+		gmp_printf("Result (Horner's Rule MT): %Zd\n", resultHornerMT);
     }
 
-    // Clear allocated memory for result variables.
-    mpz_clear(resultBruteForce);
-    mpz_clear(resultHorner);
-    mpz_clear(resultBruteForceMT);
-    mpz_clear(resultHornerMT);
+    if (giveBench) {
+
+      // Compare results of both methods and print a message indicating whether they match.
+      int comparison = mpz_cmp(resultBruteForce, resultHorner);
+      int comparison2 = mpz_cmp(resultBruteForce, resultBruteForceMT);
+      int comparison3 = mpz_cmp(resultBruteForceMT, resultHornerMT);
+
+      if (comparison == 0 && comparison2 == 0 && comparison3 == 0) {
+        std::cout << "\nResults match.\n";
+      }
+      else {
+        std::cout << "\nResults do not match.\n";
+      }
+
+      // Clear allocated memory for result variables.
+      mpz_clear(resultBruteForce);
+      mpz_clear(resultHorner);
+      mpz_clear(resultBruteForceMT);
+    }
+	mpz_clear(resultHornerMT);
 }
 
 
 void clearPolyData(std::vector < mpz_t > & coefficients, mpz_t & x) {
   // Iterate over each coefficient in the vector and clear the allocated memory.
-  for (size_t i = 0; i < coefficients.size(); ++i) {
+  for (uintptr_t i = 0; i < coefficients.size(); ++i) {
     mpz_clear(coefficients[i]);
   }
   // Clear the allocated memory for the x variable.
   mpz_clear(x);
 }
 
-void processPoly(gmp_randstate_t randState, int n, int d, bool giveResults, bool givePoly, bool giveX) {
+void processPoly(gmp_randstate_t randState, int n, int d, bool giveResults, bool givePoly, bool giveX, bool giveBench) {
   mpz_t x;
   mpz_init(x);
   randInt(x, randState, d); // Generating random integer 'x'
@@ -409,17 +416,18 @@ void processPoly(gmp_randstate_t randState, int n, int d, bool giveResults, bool
     printPoly(coefficients, x);  // Printing polynomial
   }
 
-  benchmarkAndEvaluate(coefficients, x, giveResults); // Benchmarking and evaluating polynomial
+  benchmarkAndEvaluate(coefficients, x, giveResults, giveBench); // Benchmarking and evaluating polynomial
 
   clearPolyData(coefficients, x); // Clearing polynomial data
 }
 
-bool parseArgs(int argc, char* argv[], int& n, int& d, bool& giveResults, bool& printPoly, bool& giveX) {
+bool parseArgs(int argc, char* argv[], int& n, int& d, bool& giveResults, bool& printPoly, bool& giveX, bool& giveBench) {
   giveResults = false;
   printPoly = false;
   giveX = false;
+  giveBench = false;
 
-  if (argc < 3 || argc > 6) {
+  if (argc < 3 || argc > 7) {
     printUsage(argv[0]);
     return false;
   }
@@ -437,6 +445,9 @@ bool parseArgs(int argc, char* argv[], int& n, int& d, bool& giveResults, bool& 
     else if (strcmp(argv[i], "-x") == 0 || strcmp(argv[i], "--print-x") == 0) {
       giveX = true;
     }
+	else if (strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "--benchmark") == 0) {
+      giveBench = true;
+    }
     else {
       std::cerr << "Invalid option: " << argv[i] << std::endl;
       printUsage(argv[0]);
@@ -448,6 +459,16 @@ bool parseArgs(int argc, char* argv[], int& n, int& d, bool& giveResults, bool& 
     std::cerr << "Both the number of coefficients and the length in digits should be positive." << std::endl;
     return false;
   }
+
+  if (n > 99999) {
+    std::cerr << "n cannot be greater than 99999" << std::endl;
+    return false;
+  }
+
+  if (d > 99999) {
+    std::cerr << "d cannot be greater than 99999" << std::endl;
+    return false;
+  }
   return true;
 }
 
@@ -456,16 +477,16 @@ int main(int argc, char* argv[]) {
   initRandState(randState);  // Initialize the random state
 
   int n, d;
-  bool giveResults, givePoly, giveX;
+  bool giveResults, givePoly, giveX, giveBench;
 
-  if (!parseArgs(argc, argv, n, d, giveResults, givePoly, giveX)) {
+  if (!parseArgs(argc, argv, n, d, giveResults, givePoly, giveX, giveBench)) {
     return 1;
   }
 
   std::cout << "Value for n: " << n << std::endl;
   std::cout << "Value for d: " << d << std::endl << std::endl;
 
-  processPoly(randState, n, d, giveResults, givePoly, giveX);
+  processPoly(randState, n, d, giveResults, givePoly, giveX, giveBench);
 
   gmp_randclear(randState); // Clear global random state variable
 
