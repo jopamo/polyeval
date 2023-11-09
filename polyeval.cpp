@@ -17,14 +17,11 @@ External files: The GNU Multiple Precision Arithmetic Library
 */
 
 #include <chrono>
-#include <cstdlib>
 #include <cstring>
-#include <ctime>
 #include <gmp.h>
 #include <iostream>
 #include <thread>
 #include <vector>
-#include <string>
 
 void printUsage(const std::string& programName) {
   std::cout << "Usage: " << programName << " <Degree of a polynomial> <Length in digits> [OPTIONS]\n";
