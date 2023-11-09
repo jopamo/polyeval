@@ -24,23 +24,40 @@ External files: The GNU Multiple Precision Arithmetic Library
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <string>
 
-void printUsage(const char* programName) {
-  std::cout << "Usage: " << programName << " <Number of coefficients> <Length in digits> [OPTIONS]" << std::endl;
-  std::cout << "Example: " << programName << " 100 200 [OPTIONS]" << std::endl;
-  std::cout << std::endl;
-  std::cout << "Options:" << std::endl;
-  std::cout << "  -r, --results     Print the resulting value." << std::endl;
-  std::cout << "  -p, --print-poly  Print the generated polynomial." << std::endl;
-  std::cout << "  -x, --print-x     Print the randomly generated x value." << std::endl;
-  std::cout << "  -b, --benchmark   Run slower methods to compare results." << std::endl;
-  std::cout << std::endl;
-  std::cout << "Description:" << std::endl;
-  std::cout << "  This program evaluates a polynomial with randomly generated coefficients using" << std::endl;
-  std::cout << "  various methods. The user can specify the number of coefficients (n) and the length" << std::endl;
-  std::cout << "  in digits (d) of each randomly generated coefficient and the random value of (x)." << std::endl;
-  std::cout << "  Additional options allow for the printing of resulting value, the polynomial solved," << std::endl;
-  std::cout << "  the x value used in the evaluation, and to run the slower methods for comparison." << std::endl;
+void printUsage(const std::string& programName) {
+  std::cout << "Usage: " << programName << " <Degree of a polynomial> <Length in digits> [OPTIONS]\n";
+  std::cout << "Example: " << programName << " 100 200 [OPTIONS]\n\n";
+
+  std::cout << "Options:\n";
+  std::cout << "  -r, --results     Print the resulting value.\n";
+  std::cout << "  -p, --print-poly  Print the generated polynomial.\n";
+  std::cout << "  -x, --print-x     Print the randomly generated x value.\n";
+  std::cout << "  -b, --benchmark   Run slower methods to compare results.\n\n";
+
+  std::cout << "Description:\n";
+  std::cout << "  This program evaluates a polynomial with randomly generated coefficients using\n";
+  std::cout << "  various methods. The user can specify the Degree of a polynomial (n) and the length\n";
+  std::cout << "  in digits (d) of each randomly generated coefficient and the random value of (x).\n";
+  std::cout << "  Additional options allow for the printing of resulting value, the polynomial solved,\n";
+  std::cout << "  the x value used in the evaluation, and to run the slower methods for comparison.\n";
+}
+
+bool tryStoi(const std::string& str, int& out, const std::string& programName) {
+  try {
+    out = std::stoi(str);
+    return true;
+  }
+  catch (const std::out_of_range& e) {
+    std::cout << "That number is way too big, 99999 max for both. This uses 4GB of RAM or so. - ./polyeval <n> <d>\n\n";
+    printUsage(programName);
+  }
+  catch (const std::invalid_argument& e) {
+    std::cout << "You must enter numbers n >= 0 and d > 0 - ./polyeval <n> <d>\n\n";
+    printUsage(programName);
+  }
+  return false;
 }
 
 // Function to initialize and return a new random state
@@ -146,18 +163,48 @@ void evalPolyBruteMT(mpz_t result, // Resulting mpz_t value where the final eval
     // Initialize the local result for the current thread
     mpz_init(localResults[t]);
 
-    // Determine the start and end indices for the current thread
+    // Determine the start index for the current thread's work segment
+    // 'start' holds the starting index for the current thread (identified by 't')
+    // 't' is the index/identifier for the current thread, starting from 0
+    // 'termsPerThread' is the fixed number of elements that each thread will process
     size_t start = t * termsPerThread;
+
+    // Determine the end index for the current thread's work segment
+    // 'end' will hold the ending index for the current thread's work segment
+    // Using a ternary operator to decide if this is the last thread
+    // If 't' is the last thread (i.e., 't == numThreads - 1'), it will handle up to the end of the 'coefficients' array/vector
+    // If it's not the last thread, then 'end' is calculated as 'start' index plus 'termsPerThread'
+    // 'numThreads' is the total number of threads
+    // 'coefficients.size()' gives the total number of elements in the 'coefficients' array/vector
     size_t end = (t == numThreads - 1) ? coefficients.size() : start + termsPerThread;
 
-    // Start a new thread that computes the polynomial value for the determined range of coefficients
+    // Create and start a new thread of execution
+    // 'threads' is an array or vector of std::thread objects
+    // 't' is the index/identifier for the current thread, starting from 0
+    // 'std::thread' constructs a new thread object and starts execution of the thread
+    // 'evalPolyBrute' is the function that the new thread will execute
+    // 'localResults[t]' is where the result of the computation performed by the thread will be stored
+    // 'std::ref(coefficients)' passes a reference to the 'coefficients' vector to the thread function
+    // This is necessary because std::thread requires arguments that can be copied, but we want to pass by reference
+    // 'x' is the input to the 'evalPolyBrute' function that all threads will use in their computation
+    // 'start' and 'end' define the range of elements in 'coefficients' that this thread will process
+    // These variables were calculated in the previous lines of code we commented on
     threads[t] = std::thread(evalPolyBrute, localResults[t], std::ref(coefficients), x, start, end);
   }
 
-  // Wait for all threads to finish their computation
+  // Iterate over the collection of thread objects
+  // 'auto' enables the compiler to automatically deduce the type of the variable 't'
+  // '&' is used to capture each thread by reference, which means that 't' refers to the actual thread object in 'threads'
+  // 'threads' is a container (like an array or vector) holding all the thread objects that were created previously
+  // The range-based for loop ('for (auto & t: threads)') goes through each thread in 'threads'
   for (auto & t: threads) {
+    // Wait for the thread to finish executing
+    // 't.join()' is a call to the join member function on the thread object 't'
+    // 'join()' will block the calling thread (in this case, the main thread) until the thread 't' has finished its execution
+    // This is necessary to ensure that all threads complete their tasks before the program continues past the for loop
+    // If 't' has already finished execution, 'join()' returns immediately
     t.join();
-  }
+}
 
   // Accumulate the results from all threads
   for (mpz_t & localResult: localResults) {
@@ -272,36 +319,46 @@ void evalPolyHornerMT(mpz_t result, // Resulting mpz_t value where the final eva
 }
 
 // Function to print a polynomial expression.
-void printPoly(const std::vector < mpz_t > & coefficients, mpz_t x) {
-  std::cout << "Polynomial: P(x) = ";
-  // Iterate through coefficients in reverse order to print in descending power of x.
-  for (uintptr_t i = coefficients.size() - 1; i > 0; --i) {
-    if (mpz_sgn(coefficients[i]) != 0) {
-      if (i == 0) {
-        // Print coefficient if it's the constant term.
-        std::cout << mpz_get_str(nullptr, 10, coefficients[i]);
+void printPoly(const std::vector<mpz_t>& coefficients, mpz_t x) {
+  std::cout << "\nPolynomial: P(x) = ";
+  bool firstPrinted = false; // '+' sign before non-first terms
+
+  // Reverse order to print in descending power of x.
+  for (int i = coefficients.size() - 1; i >= 0; --i) {
+    if (mpz_sgn(coefficients[i]) != 0) { //print non-zero coefficients
+      // '+' sign for non-first terms
+      if (firstPrinted) {
+        std::cout << " + ";
       }
-      else {
-        // Print coefficient and corresponding power of x.
-        std::cout << mpz_get_str(nullptr, 10, coefficients[i]) << "x^" << i;
-        if (i > 0) {
-          std::cout << " + ";
+      firstPrinted = true;
+
+      // Print coefficient
+      std::cout << mpz_get_str(nullptr, 10, coefficients[i]);
+
+      // Print the corresponding power of x if it's not the constant term
+      if (i > 0) {
+        std::cout << "x";
+        if (i > 1) {
+          std::cout << "^" << i;
         }
       }
     }
   }
-  // Print the value of x used for the polynomial evaluation.
-  std::cout << " where x = " << mpz_get_str(nullptr, 10, x) << std::endl;
+  // Check if all coefficients were zero
+  if (!firstPrinted) {
+    std::cout << "0";
+  }
+  // Print the value of x
+  std::cout << " where x = " << mpz_get_str(nullptr, 10, x) << "\n\n";
 }
 
 // Function to generate and initialize coefficients for a polynomial of
 // degree 'n' with 'd' digits each.
 std::vector<mpz_t> generateCoefficients(gmp_randstate_t randState, int n, int d) {
-  assert(d > 0); // Ensure that the number of digits 'd' is greater than 0
-  std::vector<mpz_t> coefficients(n + 1);
-  for (int i = 0; i < n; ++i) {
+  std::vector<mpz_t> coefficients(n + 1);  // create vector with 'n + 1'
+  for (int i = 0; i <= n; ++i) {            // 'n + 1'
     mpz_init(coefficients[i]);
-    randInt(coefficients[i], randState, d); // Generate random coefficient with 'd' digits.
+    randInt(coefficients[i], randState, d);
   }
   return coefficients;
 }
@@ -312,9 +369,9 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool 
     mpz_t resultHornerMT;
     mpz_init(resultHornerMT);
 
-	mpz_t resultBruteForce, resultBruteForceMT, resultHorner;
+    mpz_t resultBruteForce, resultBruteForceMT, resultHorner;
 
-	mpz_init(resultBruteForce);
+    mpz_init(resultBruteForce);
     mpz_init(resultBruteForceMT);
     mpz_init(resultHorner);
 
@@ -333,7 +390,7 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool 
       auto startBruteForce = std::chrono::high_resolution_clock::now();
       evalPolyBrute(resultBruteForce, coefficients, x);
       auto endBruteForce = std::chrono::high_resolution_clock::now();
-	  auto durationBruteForce = std::chrono::duration_cast<std::chrono::microseconds>(endBruteForce - startBruteForce);
+      auto durationBruteForce = std::chrono::duration_cast<std::chrono::microseconds>(endBruteForce - startBruteForce);
       printTime(durationBruteForce, "Brute Force method:\t\t\t");
 
       // Start timing for brute-force mt method.
@@ -347,7 +404,7 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool 
       auto startHorner = std::chrono::high_resolution_clock::now();
       evalPolyHorner(resultHorner, coefficients, x);
       auto endHorner = std::chrono::high_resolution_clock::now();
-	  auto durationHorner = std::chrono::duration_cast<std::chrono::microseconds>(endHorner - startHorner);
+      auto durationHorner = std::chrono::duration_cast<std::chrono::microseconds>(endHorner - startHorner);
       printTime(durationHorner, "Horner's method:\t\t\t");
     }
 
@@ -355,31 +412,30 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool 
     auto startHornerMT = std::chrono::high_resolution_clock::now();
     evalPolyHornerMT(resultHornerMT, coefficients, x);
     auto endHornerMT = std::chrono::high_resolution_clock::now();
-  	auto durationHornerMT = std::chrono::duration_cast<std::chrono::microseconds>(endHornerMT - startHornerMT);
-	printTime(durationHornerMT, "Horner's method (multithreaded):\t");
+    auto durationHornerMT = std::chrono::duration_cast<std::chrono::microseconds>(endHornerMT - startHornerMT);
+    printTime(durationHornerMT, "Horner's method (multithreaded):\t");
 
     // Print the results
     if (giveResults) {
-		if (giveBench) {
-          gmp_printf("Result (Brute Force): %Zd\n", resultBruteForce);
-          gmp_printf("Result (Brute Force MT): %Zd\n", resultBruteForceMT);
-          gmp_printf("Result (Horner's Rule): %Zd\n", resultHorner);
-        }
-		gmp_printf("Result (Horner's Rule MT): %Zd\n", resultHornerMT);
+      if (giveBench) {
+        gmp_printf("Result (Brute Force): %Zd\n", resultBruteForce);
+        gmp_printf("Result (Brute Force MT): %Zd\n", resultBruteForceMT);
+        gmp_printf("Result (Horner's Rule): %Zd\n", resultHorner);
+      }
+      gmp_printf("Result (Horner's Rule MT): %Zd\n", resultHornerMT);
     }
 
     if (giveBench) {
-
       // Compare results of both methods and print a message indicating whether they match.
       int comparison = mpz_cmp(resultBruteForce, resultHorner);
       int comparison2 = mpz_cmp(resultBruteForce, resultBruteForceMT);
       int comparison3 = mpz_cmp(resultBruteForceMT, resultHornerMT);
 
       if (comparison == 0 && comparison2 == 0 && comparison3 == 0) {
-        std::cout << "\nResults match.\n";
+        std::cout << "  Results match.\n";
       }
       else {
-        std::cout << "\nResults do not match.\n";
+        std::cout << "  Results do not match.\n";
       }
 
       // Clear allocated memory for result variables.
@@ -387,14 +443,14 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool 
       mpz_clear(resultHorner);
       mpz_clear(resultBruteForceMT);
     }
-	mpz_clear(resultHornerMT);
+  mpz_clear(resultHornerMT);
 }
 
 
 void clearPolyData(std::vector < mpz_t > & coefficients, mpz_t & x) {
   // Iterate over each coefficient in the vector and clear the allocated memory.
-  for (uintptr_t i = 0; i < coefficients.size(); ++i) {
-    mpz_clear(coefficients[i]);
+  for (mpz_t& coeff : coefficients) {
+    mpz_clear(coeff);
   }
   // Clear the allocated memory for the x variable.
   mpz_clear(x);
@@ -406,12 +462,12 @@ void processPoly(gmp_randstate_t randState, int n, int d, bool giveResults, bool
   randInt(x, randState, d); // Generating random integer 'x'
 
   if (giveX) {
-    gmp_printf("Value for x: %Zd\n\n", x);
+    gmp_printf("Value for x: %Zd\n", x);
   }
 
   auto coefficients = generateCoefficients(randState, n, d); // Generating coefficients
 
-  // This can produces long output to screen when polynomials are long
+  // This can produce long output to screen when polynomials are long
   if (givePoly) {
     printPoly(coefficients, x);  // Printing polynomial
   }
@@ -432,8 +488,30 @@ bool parseArgs(int argc, char* argv[], int& n, int& d, bool& giveResults, bool& 
     return false;
   }
 
-  n = std::stoi(argv[1]);
-  d = std::stoi(argv[2]);
+  if (!tryStoi(argv[1], n, argv[0]) || !tryStoi(argv[2], d, argv[0])) {
+    // tryStoi has already printed the error message.
+    return false;
+  }
+
+  if (n < 0) {
+    std::cerr << "'n' must be positive.\n";
+    return false;
+  }
+
+  if (d <= 0) {
+    std::cerr << "'d' needs to be greater than zero.\n";
+    return false;
+  }
+
+  if (n > 99999) {
+    std::cerr << "n cannot be greater than 99999\n";
+    return false;
+  }
+
+  if (d > 99999) {
+    std::cerr << "d cannot be greater than 99999\n";
+    return false;
+  }
 
   for (int i = 3; i < argc; i++) {
     if (strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--results") == 0) {
@@ -445,7 +523,7 @@ bool parseArgs(int argc, char* argv[], int& n, int& d, bool& giveResults, bool& 
     else if (strcmp(argv[i], "-x") == 0 || strcmp(argv[i], "--print-x") == 0) {
       giveX = true;
     }
-	else if (strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "--benchmark") == 0) {
+    else if (strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "--benchmark") == 0) {
       giveBench = true;
     }
     else {
@@ -455,20 +533,6 @@ bool parseArgs(int argc, char* argv[], int& n, int& d, bool& giveResults, bool& 
     }
   }
 
-  if (n <= 0 || d <= 0) {
-    std::cerr << "Both the number of coefficients and the length in digits should be positive." << std::endl;
-    return false;
-  }
-
-  if (n > 99999) {
-    std::cerr << "n cannot be greater than 99999" << std::endl;
-    return false;
-  }
-
-  if (d > 99999) {
-    std::cerr << "d cannot be greater than 99999" << std::endl;
-    return false;
-  }
   return true;
 }
 
@@ -483,8 +547,8 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  std::cout << "Value for n: " << n << std::endl;
-  std::cout << "Value for d: " << d << std::endl << std::endl;
+  std::cout << "Value for n: " << n << "\n";
+  std::cout << "Value for d: " << d << "\n";
 
   processPoly(randState, n, d, giveResults, givePoly, giveX, giveBench);
 
