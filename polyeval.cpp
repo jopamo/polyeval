@@ -63,28 +63,42 @@ void initRandState(gmp_randstate_t randState) {
   gmp_randseed_ui(randState, static_cast<unsigned long>(std::time(nullptr)));
 }
 
-// Function to generate a random integer with a specified number of digits ('d').
-void randInt(mpz_t randomInt, gmp_randstate_t randState, int d) {
-  mpz_t lowerLimit;
-  mpz_init(lowerLimit);
-  mpz_ui_pow_ui(lowerLimit, 10, d - 1); // Set the lower limit to 10^(d-1) to ensure 'd' digits.
+// Generates a random integer with exactly d digits, or d-1 digits if includeZero is true.
+void randInt(mpz_t randomInt, gmp_randstate_t randState, int d, bool includeZero) {
+    mpz_t lowerLimit, upperLimit;
 
-  mpz_t upperLimit;
-  mpz_init(upperLimit);
-  mpz_ui_pow_ui(upperLimit, 10, d); // Set the upper limit to 10^d.
+    // Initialize mpz variables for the lower and upper limits.
+    mpz_inits(lowerLimit, upperLimit, NULL);
 
-  mpz_urandomm(randomInt, randState, upperLimit); // Generate a random number in [0, 10^d).
-  mpz_add(randomInt, randomInt, lowerLimit); // Shift the random number to ensure it has 'd' digits.
+    // When d > 1 or we're not including zero, set the lower limit to 10^(d-1) to get a d-digit number.
+    // Otherwise, for d = 1 and including zero, the lower limit is 0.
+    if (d > 1 || !includeZero) {
+        mpz_ui_pow_ui(lowerLimit, 10, d - 1); // lowerLimit = 10^(d-1)
+    } else {
+        mpz_set_ui(lowerLimit, 0); // lowerLimit = 0
+    }
 
-  // In case adding the lower limit causes an overflow, add the lower limit again.
-  if (mpz_cmp(randomInt, lowerLimit) < 0) {
-    mpz_add(randomInt, randomInt, lowerLimit);
-  }
+    // Set the upper limit to 10^d, which is one more than the maximum d-digit number.
+    mpz_ui_pow_ui(upperLimit, 10, d); // upperLimit = 10^d
 
-  // Clear the mpz_t variables to free the allocated memory.
-  mpz_clear(lowerLimit);
-  mpz_clear(upperLimit);
+    // Generate a random number within [0, upperLimit).
+    // Note: mpz_urandomm generates numbers in [0, upperLimit-1].
+    mpz_urandomm(randomInt, randState, upperLimit);
+
+    // If we're not including zero and d > 1, ensure the number has d digits by adding the lower limit.
+    if (d > 1 || !includeZero) {
+        mpz_add(randomInt, randomInt, lowerLimit); // randomInt = randomInt + lowerLimit
+    }
+
+    // If, after adding the lower limit, the number equals or exceeds the upper limit, correct it.
+    if (mpz_cmp(randomInt, upperLimit) >= 0) {
+        mpz_sub(randomInt, randomInt, upperLimit); // randomInt = randomInt - upperLimit
+    }
+
+    // Clean up mpz variables to prevent memory leaks.
+    mpz_clears(lowerLimit, upperLimit, NULL);
 }
+
 
 // Function to evaluate a polynomial using the brute force method.
 // Updated version increments by multiplying by x to increase the exponential
@@ -355,7 +369,7 @@ std::vector<mpz_t> generateCoefficients(gmp_randstate_t randState, int n, int d)
   std::vector<mpz_t> coefficients(n + 1);  // create vector with 'n + 1'
   for (int i = 0; i <= n; ++i) {            // 'n + 1'
     mpz_init(coefficients[i]);
-    randInt(coefficients[i], randState, d);
+    randInt(coefficients[i], randState, d, false);
   }
   return coefficients;
 }
@@ -456,7 +470,7 @@ void clearPolyData(std::vector < mpz_t > & coefficients, mpz_t & x) {
 void processPoly(gmp_randstate_t randState, int n, int d, bool giveResults, bool givePoly, bool giveX, bool giveBench) {
   mpz_t x;
   mpz_init(x);
-  randInt(x, randState, d); // Generating random integer 'x'
+  randInt(x, randState, d, false); // Generating random integer 'x'
 
   if (giveX) {
     gmp_printf("Value for x: %Zd\n", x);
