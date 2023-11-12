@@ -65,40 +65,41 @@ void initRandState(gmp_randstate_t randState) {
 
 // Generates a random integer with exactly d digits, or d-1 digits if includeZero is true.
 void randInt(mpz_t randomInt, gmp_randstate_t randState, int d, bool includeZero) {
-    mpz_t lowerLimit, upperLimit;
+  mpz_t lowerLimit, upperLimit;
 
-    // Initialize mpz variables for the lower and upper limits.
-    mpz_inits(lowerLimit, upperLimit, NULL);
+  // Initialize mpz variables for the lower and upper limits.
+  mpz_inits(lowerLimit, upperLimit, NULL);
 
-    // When d > 1 or we're not including zero, set the lower limit to 10^(d-1) to get a d-digit number.
-    // Otherwise, for d = 1 and including zero, the lower limit is 0.
-    if (d > 1 || !includeZero) {
-        mpz_ui_pow_ui(lowerLimit, 10, d - 1); // lowerLimit = 10^(d-1)
+  // Set the lower limit based on d and includeZero.
+  if (d > 1) {
+    mpz_ui_pow_ui(lowerLimit, 10, d - 1); // lowerLimit = 10^(d-1)
+  } else { // d = 1
+    if (includeZero) {
+      mpz_set_ui(lowerLimit, 0); // lowerLimit = 0
     } else {
-        mpz_set_ui(lowerLimit, 0); // lowerLimit = 0
+      mpz_set_ui(lowerLimit, 1); // lowerLimit = 1 for single-digit non-zero numbers
     }
+  }
 
-    // Set the upper limit to 10^d, which is one more than the maximum d-digit number.
-    mpz_ui_pow_ui(upperLimit, 10, d); // upperLimit = 10^d
+  // Set the upper limit to 10^d.
+  mpz_ui_pow_ui(upperLimit, 10, d); // upperLimit = 10^d
 
-    // Generate a random number within [0, upperLimit).
-    // Note: mpz_urandomm generates numbers in [0, upperLimit-1].
-    mpz_urandomm(randomInt, randState, upperLimit);
+  // Generate a random number within [0, upperLimit).
+  mpz_urandomm(randomInt, randState, upperLimit);
 
-    // If we're not including zero and d > 1, ensure the number has d digits by adding the lower limit.
-    if (d > 1 || !includeZero) {
-        mpz_add(randomInt, randomInt, lowerLimit); // randomInt = randomInt + lowerLimit
-    }
+  // If d > 1, ensure the number has d digits by adding the lower limit.
+  if (d > 1) {
+    mpz_add(randomInt, randomInt, lowerLimit);
+  }
 
-    // If, after adding the lower limit, the number equals or exceeds the upper limit, correct it.
-    if (mpz_cmp(randomInt, upperLimit) >= 0) {
-        mpz_sub(randomInt, randomInt, upperLimit); // randomInt = randomInt - upperLimit
-    }
+  // If, after adding the lower limit, the number equals or exceeds the upper limit, correct it.
+  if (mpz_cmp(randomInt, upperLimit) >= 0) {
+    mpz_sub(randomInt, randomInt, upperLimit);
+  }
 
-    // Clean up mpz variables to prevent memory leaks.
-    mpz_clears(lowerLimit, upperLimit, NULL);
+  // Clean up mpz variables to prevent memory leaks.
+  mpz_clears(lowerLimit, upperLimit, NULL);
 }
-
 
 // Function to evaluate a polynomial using the brute force method.
 // Updated version increments by multiplying by x to increase the exponential
