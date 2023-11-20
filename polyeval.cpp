@@ -41,6 +41,9 @@ void printUsage(const std::string& programName) {
   std::cout << "  the x value used in the evaluation, and to run the slower methods for comparison.\n";
 }
 
+// Function pointer type for polynomial evaluation methods.
+typedef void (*EvalPolyFunc)(mpz_t, const std::vector<mpz_t>&, mpz_t, size_t, size_t);
+
 bool tryStoi(const std::string& str, int& out, const std::string& programName) {
   try {
     out = std::stoi(str);
@@ -73,10 +76,12 @@ void randInt(mpz_t randomInt, gmp_randstate_t randState, int d, bool includeZero
   // Set the lower limit based on d and includeZero.
   if (d > 1) {
     mpz_ui_pow_ui(lowerLimit, 10, d - 1); // lowerLimit = 10^(d-1)
-  } else { // d = 1
+  }
+  else { // d = 1
     if (includeZero) {
       mpz_set_ui(lowerLimit, 0); // lowerLimit = 0
-    } else {
+    }
+    else {
       mpz_set_ui(lowerLimit, 1); // lowerLimit = 1 for single-digit non-zero numbers
     }
   }
@@ -152,81 +157,6 @@ void evalPolyBrute(mpz_t result, // Resulting mpz_t value where the evaluation w
   mpz_clear(x_power);
 }
 
-// Multi-threaded function to evaluate a polynomial using a brute force approach
-void evalPolyBruteMT(mpz_t result, // Resulting mpz_t value where the final evaluation will be stored
-                     const std::vector < mpz_t > & coefficients, // The polynomial coefficients
-                     mpz_t x) { // The x value at which polynomial is evaluated
-
-  mpz_set_ui(result, 0); // Initialize the result to 0
-
-  // Get the number of available hardware threads on the machine
-  const size_t numThreads = std::thread::hardware_concurrency();
-
-  std::vector < std::thread > threads(numThreads); // Create a vector to hold the threads
-
-  // Create a vector to store the local results of each thread
-  std::vector < mpz_t > localResults(numThreads);
-
-  // Calculate how many polynomial terms each thread should handle
-  size_t termsPerThread = coefficients.size() / numThreads;
-
-  for (size_t t = 0; t < numThreads; ++t) { // Launch the threads
-
-    // Initialize the local result for the current thread
-    mpz_init(localResults[t]);
-
-    // Determine the start index for the current thread's work segment
-    // 'start' holds the starting index for the current thread (identified by 't')
-    // 't' is the index/identifier for the current thread, starting from 0
-    // 'termsPerThread' is the fixed number of elements that each thread will process
-    size_t start = t * termsPerThread;
-
-    // Determine the end index for the current thread's work segment
-    // 'end' will hold the ending index for the current thread's work segment
-    // Using a ternary operator to decide if this is the last thread
-    // If 't' is the last thread (i.e., 't == numThreads - 1'), it will handle up to the end of the 'coefficients' array/vector
-    // If it's not the last thread, then 'end' is calculated as 'start' index plus 'termsPerThread'
-    // 'numThreads' is the total number of threads
-    // 'coefficients.size()' gives the total number of elements in the 'coefficients' array/vector
-    size_t end = (t == numThreads - 1) ? coefficients.size() : start + termsPerThread;
-
-    // Create and start a new thread of execution
-    // 'threads' is an array or vector of std::thread objects
-    // 't' is the index/identifier for the current thread, starting from 0
-    // 'std::thread' constructs a new thread object and starts execution of the thread
-    // 'evalPolyBrute' is the function that the new thread will execute
-    // 'localResults[t]' is where the result of the computation performed by the thread will be stored
-    // 'std::ref(coefficients)' passes a reference to the 'coefficients' vector to the thread function
-    // This is necessary because std::thread requires arguments that can be copied, but we want to pass by reference
-    // 'x' is the input to the 'evalPolyBrute' function that all threads will use in their computation
-    // 'start' and 'end' define the range of elements in 'coefficients' that this thread will process
-    // These variables were calculated in the previous lines of code we commented on
-    threads[t] = std::thread(evalPolyBrute, localResults[t], std::ref(coefficients), x, start, end);
-  }
-
-  // Iterate over the collection of thread objects
-  // 'auto' enables the compiler to automatically deduce the type of the variable 't'
-  // '&' is used to capture each thread by reference, which means that 't' refers to the actual thread object in 'threads'
-  // 'threads' is a container (like an array or vector) holding all the thread objects that were created previously
-  // The range-based for loop ('for (auto & t: threads)') goes through each thread in 'threads'
-  for (auto & t: threads) {
-    // Wait for the thread to finish executing
-    // 't.join()' is a call to the join member function on the thread object 't'
-    // 'join()' will block the calling thread (in this case, the main thread) until the thread 't' has finished its execution
-    // This is necessary to ensure that all threads complete their tasks before the program continues past the for loop
-    // If 't' has already finished execution, 'join()' returns immediately
-    t.join();
-}
-
-  // Accumulate the results from all threads
-  for (mpz_t & localResult: localResults) {
-    mpz_add(result, result, localResult);
-
-    // Clear the memory used by the localResult to avoid memory leaks
-    mpz_clear(localResult);
-  }
-}
-
 // Function to evaluate a polynomial using Horner's Rule.
 // Horner's Rule breaks down the polynomial evaluation into a nested form, which requires only
 // n multiplications and n additions for a polynomial of degree n.
@@ -256,78 +186,64 @@ void evalPolyHorner(mpz_t result, // Resulting mpz_t value where the final evalu
   }
 }
 
-/*
-In a multithreaded approach to evaluating a polynomial, each thread is responsible
-for a specific segment of the polynomial. After each thread calculates its segment,
-these results must be correctly positioned to represent their place in the overall
-polynomial. This "shifting" ensures that every segment aligns with its corresponding
-power of x in the polynomial. For example, if one thread calculated a coefficient for
-x^3 and another for x^2, the result from the second thread would need to be shifted
-by multiplying it with x^2. This ensures that when all the segments are combined, the
-segments fit together accurately to produce the final value of the polynomial for a
-given x.
-*/
-void evalPolyHornerMT(mpz_t result, // Resulting mpz_t value where the final evaluation will be stored
-                      const std::vector < mpz_t > & coefficients, // The polynomial coefficients
-                      mpz_t x) { // The x value at which polynomial is evaluated
+// Multi-threaded polynomial evaluation function
+void evalPolyMT(mpz_t result, // Resulting mpz_t value
+                const std::vector<mpz_t> &coefficients, // Polynomial coefficients
+                mpz_t x, // The x value
+                // Pointer to either evalPolyBrute or evalPolyHorner
+                EvalPolyFunc evalFunc) {
 
-  // Initialize the result to 0
+  // Initialize result
   mpz_set_ui(result, 0);
 
-  // Determine the number of threads the hardware can run concurrently
-  const size_t numThreads = std::thread::hardware_concurrency();
-
-  // Create vectors to hold thread objects and their corresponding local results
-  std::vector < std::thread > threads(numThreads);
-  std::vector < mpz_t > localResults(numThreads);
-
-  // Calculate how many terms each thread will process
+  // Determine the number of threads and set up threading infrastructure
+  size_t numThreads = std::thread::hardware_concurrency();
+  std::vector<std::thread> threads(numThreads);
+  std::vector<mpz_t> localResults(numThreads);
   size_t termsPerThread = coefficients.size() / numThreads;
 
-  // Create and launch threads
+  // Determine if Horner's method is used
+  bool isHorner = (evalFunc == evalPolyHorner);
+
+  // Launch threads with the provided polynomial evaluation function
   for (size_t t = 0; t < numThreads; ++t) {
-
-    // Initialize the local result for the current thread
     mpz_init(localResults[t]);
-
-    // Determine the start and end indices for the current thread
     size_t start = t * termsPerThread;
     size_t end = (t == numThreads - 1) ? coefficients.size() : start + termsPerThread;
-
-    // Launch the thread to evaluate a chunk of the polynomial using Horner's method
-    threads[t] = std::thread(evalPolyHorner, localResults[t], std::ref(coefficients), x, start, end);
+    threads[t] = std::thread(evalFunc, localResults[t], std::ref(coefficients), x, start, end);
   }
 
-  // Wait for all threads to finish
-  for (auto & t: threads) {
-    t.join();
-  }
-
-  // Initialize variables to accumulate results from each thread
+  // Initialize variables for Horner's method adjustment
   mpz_t powerOfX, temp;
-  mpz_init(powerOfX);
-  mpz_init(temp);
-  mpz_set_ui(powerOfX, 1);
+  if (isHorner) {
+    mpz_init(powerOfX);
+    mpz_init(temp);
+    mpz_set_ui(powerOfX, 1);
+  }
 
-  // Combine results from all threads
+  // Join threads and accumulate results
   for (size_t t = 0; t < numThreads; ++t) {
+    threads[t].join();
 
-    // Raise x to the appropriate power based on the thread's processed terms
-    mpz_pow_ui(temp, x, termsPerThread * t);
+    if (isHorner) {
+      // Adjust for Horner's method
+      mpz_pow_ui(temp, x, termsPerThread * t);
+      mpz_mul(temp, localResults[t], temp);
+      mpz_add(result, result, temp);
+    }
+    else {
+      // Brute force method
+      mpz_add(result, result, localResults[t]);
+    }
 
-    // Multiply the thread's result by the power of x to correctly position it in the polynomial
-    mpz_mul(temp, localResults[t], temp);
-
-    // Add this to the global result
-    mpz_add(result, result, temp);
-
-    // Clear the local result for the thread
     mpz_clear(localResults[t]);
   }
 
-  // Clear temporary variables
-  mpz_clear(powerOfX);
-  mpz_clear(temp);
+  // Clear temporary variables for Horner's method
+  if (isHorner) {
+    mpz_clear(powerOfX);
+    mpz_clear(temp);
+  }
 }
 
 // Function to print a polynomial expression.
@@ -407,7 +323,7 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool 
 
       // Start timing for brute-force mt method.
       auto startBruteForceMT = std::chrono::high_resolution_clock::now();
-      evalPolyBruteMT(resultBruteForceMT, coefficients, x);
+      evalPolyMT(resultBruteForceMT, coefficients, x, evalPolyBrute);
       auto endBruteForceMT = std::chrono::high_resolution_clock::now();
       auto durationBruteForceMT = std::chrono::duration_cast<std::chrono::microseconds>(endBruteForceMT - startBruteForceMT);
       printTime(durationBruteForceMT, "Brute Force method (multithreaded):\t");
@@ -422,7 +338,7 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool 
 
     // Start timing for horner mt method.
     auto startHornerMT = std::chrono::high_resolution_clock::now();
-    evalPolyHornerMT(resultHornerMT, coefficients, x);
+    evalPolyMT(resultHornerMT, coefficients, x, evalPolyHorner);
     auto endHornerMT = std::chrono::high_resolution_clock::now();
     auto durationHornerMT = std::chrono::duration_cast<std::chrono::microseconds>(endHornerMT - startHornerMT);
     printTime(durationHornerMT, "Horner's method (multithreaded):\t");
