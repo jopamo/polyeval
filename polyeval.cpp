@@ -6,15 +6,19 @@ Repo: https://github.com/jopamo/polyeval
 Date: 10.08.23
 Name of class: CS3130
 
-In this project, we will compare two different algorithms that are used to evaluate
-polynomials. The goal is to understand the importance of the efficiency of an algorithm.
-The first algorithm is the brute force method in which we evaluate polynomials in the
-usual way. The second algorithm uses the Horner’s Rule to evaluate polynomials.
+In this project, we will compare the performance of different algorithms and their multithreaded
+equivalents by solving polynomials.
+
+- Brute force method: Directly calculating each term's value and summing them. The second algorithm
+employs
+- Horner’s Rule: Which restructures the polynomial to minimize the number of multiplications,
+resulting in a more efficient evaluation.
 
 External files: The GNU Multiple Precision Arithmetic Library
                 https://gmplib.org/
-                Commonly packaged as 'gmp', ensure the header gmp.h is around as well
+                Commonly packaged as 'gmp', ensure the header gmp.h is included as well
 */
+
 
 #include <chrono>
 #include <cstring>
@@ -41,7 +45,7 @@ void printUsage(const std::string& programName) {
   std::cout << "  the x value used in the evaluation, and to run the slower methods for comparison.\n";
 }
 
-// Function pointer type for polynomial evaluation methods.
+// Pointer type for polynomial evaluation methods.
 typedef void (*EvalPolyFunc)(mpz_t, const std::vector<mpz_t>&, mpz_t, size_t, size_t);
 
 bool tryStoi(const std::string& str, int& out, const std::string& programName) {
@@ -60,7 +64,7 @@ bool tryStoi(const std::string& str, int& out, const std::string& programName) {
   return false;
 }
 
-// Function to initialize and return a new random state
+// Initialize and return a new random state
 void initRandState(gmp_randstate_t randState) {
   gmp_randinit_mt(randState); // or another suitable initialization method
   gmp_randseed_ui(randState, static_cast<unsigned long>(std::time(nullptr)));
@@ -106,7 +110,7 @@ void randInt(mpz_t randomInt, gmp_randstate_t randState, int d, bool includeZero
   mpz_clears(lowerLimit, upperLimit, NULL);
 }
 
-// Function to evaluate a polynomial using the brute force method.
+// Evaluate a polynomial using the brute force method.
 // Updated version increments by multiplying by x to increase the exponential
 // value. This makes it simple multiplication in each iteration intead of exponents
 // and eliminates 'term' being created/cleared with each iteration. Calculating pow
@@ -157,10 +161,11 @@ void evalPolyBrute(mpz_t result, // Resulting mpz_t value where the evaluation w
   mpz_clear(x_power);
 }
 
-// Function to evaluate a polynomial using Horner's Rule.
+// Evaluate a polynomial using Horner's Rule.
 // Horner's Rule breaks down the polynomial evaluation into a nested form, which requires only
 // n multiplications and n additions for a polynomial of degree n.
-// Function to evaluate a polynomial using the Horner's method
+
+// Evaluate a polynomial using the Horner's method
 void evalPolyHorner(mpz_t result, // Resulting mpz_t value where the final evaluation will be stored
                     const std::vector < mpz_t > & coefficients, // The polynomial coefficients
                     mpz_t x, // The x value at which polynomial is evaluated
@@ -246,7 +251,7 @@ void evalPolyMT(mpz_t result, // Resulting mpz_t value
   }
 }
 
-// Function to print a polynomial expression.
+// Print a polynomial expression.
 void printPoly(const std::vector<mpz_t>& coefficients, mpz_t x) {
   std::cout << "\nPolynomial: P(x) = ";
   bool firstPrinted = false; // '+' sign before non-first terms
@@ -280,7 +285,7 @@ void printPoly(const std::vector<mpz_t>& coefficients, mpz_t x) {
   std::cout << " where x = " << mpz_get_str(nullptr, 10, x) << "\n\n";
 }
 
-// Function to generate and initialize coefficients for a polynomial of
+// Generate and initialize coefficients for a polynomial of
 // degree 'n' with 'd' digits each.
 std::vector<mpz_t> generateCoefficients(gmp_randstate_t randState, int n, int d) {
   std::vector<mpz_t> coefficients(n + 1);  // create vector with 'n + 1'
@@ -291,7 +296,7 @@ std::vector<mpz_t> generateCoefficients(gmp_randstate_t randState, int n, int d)
   return coefficients;
 }
 
-// Function to evaluate and benchmark a polynomial using both brute-force and
+// Evaluate and benchmark a polynomial using both brute-force and
 // Horner's methods, and print results.
 void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool giveResults,  bool giveBench) {
     mpz_t resultHornerMT;
@@ -303,7 +308,7 @@ void benchmarkAndEvaluate(const std::vector<mpz_t>& coefficients, mpz_t x, bool 
     mpz_init(resultBruteForceMT);
     mpz_init(resultHorner);
 
-    // Function to print time appropriately
+    // Print time appropriately
     auto printTime = [](const std::chrono::microseconds& duration, const char* method) {
       if (duration.count() >= 1000) {
         std::cout << "Time for " << method << static_cast<float>(duration.count()) / 1000.0 << " milliseconds\n";
@@ -422,12 +427,12 @@ bool parseArgs(int argc, char* argv[], int& n, int& d, bool& giveResults, bool& 
   }
 
   if (n < 0) {
-    std::cerr << "'n' must be positive.\n";
+    std::cerr << "'n' must be unsigned\n";
     return false;
   }
 
   if (d <= 0) {
-    std::cerr << "'d' needs to be greater than zero.\n";
+    std::cerr << "'d' needs to be greater than zero\n";
     return false;
   }
 
